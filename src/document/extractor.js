@@ -79,6 +79,9 @@ async function extractDocument(filePath) {
   const { fields, warnings } = await extractStructuredFields(rawText);
   const { record, unmapped } = normalizeFields(fields);
 
+  return { rawText, fields, record, unmapped, warnings };
+}
+
 /**
  * Compatibility wrapper returning both flat fields and canonical sections.
  */
@@ -97,3 +100,4 @@ async function parseDocument(filePath) {
 }
 
 module.exports = { extractDocument, parseDocument, readRawText, extractStructuredFields };
+
