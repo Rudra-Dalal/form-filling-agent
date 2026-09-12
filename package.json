@@ -1,0 +1,24 @@
+{
+  "name": "form-filling-agent",
+  "version": "0.1.0",
+  "description": "Electron desktop AI agent that reads documents and fills web forms",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/run-all.js",
+    "postinstall": "playwright install chromium"
+  },
+  "author": "Rudra Dalal",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "electron-store": "^10.0.0",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.48.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
