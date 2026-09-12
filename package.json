@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
+    "dev": "electron .",
     "test": "node tests/run-all.js",
     "postinstall": "playwright install chromium"
   },

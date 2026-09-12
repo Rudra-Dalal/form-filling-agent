@@ -45,3 +45,14 @@ test('validateCanonicalRecord flags keys outside the canonical schema', () => {
   assert.equal(valid, false);
   assert.deepEqual(unknownKeys, ['extra']);
 });
+
+test('Document Parser - parseDocx successfully reads sample-admission-record.docx', async () => {
+  const path = require('node:path');
+  const { parseDocx } = require('../../src/document/parsers/docx.parser');
+  const fixturePath = path.join(__dirname, '..', 'fixtures', 'sample-admission-record.docx');
+
+  const text = await parseDocx(fixturePath);
+  assert.ok(text.includes('Greenwood High School'));
+  assert.ok(text.includes('Aditi Rakesh Sharma'));
+  assert.ok(text.includes('Grade 8'));
+});
