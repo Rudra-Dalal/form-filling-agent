@@ -4,7 +4,7 @@ const { emptyCanonicalRecord } = require('../agent/schemas/document.schema');
 // lowercased). First match wins, so more specific keywords should precede
 // more general ones (e.g. "father" before a bare "name").
 const LABEL_RULES = [
-  ['student.fullName', ['student name', "student's name", 'full name', 'candidate name']],
+  ['student.fullName', ['student name', "student's name", 'applicant name', 'full name', 'candidate name']],
   ['student.dateOfBirth', ['date of birth', 'dob', 'birth date']],
   ['student.gender', ['gender', 'sex']],
   ['parent.fatherName', ["father's name", 'father name', 'guardian name (father)']],
@@ -16,6 +16,22 @@ const LABEL_RULES = [
   ['address.street', ['address', 'street', 'residential address']],
 ];
 
+function normalizeDateValue(val) {
+  if (!val || typeof val !== 'string') return val;
+  const trimmed = val.trim();
+  // Already ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  return trimmed;
+}
+
 function matchRule(label) {
   const lower = label.toLowerCase().trim();
   for (const [path, keywords] of LABEL_RULES) {
@@ -26,7 +42,11 @@ function matchRule(label) {
 
 function setPath(record, path, value) {
   const [section, key] = path.split('.');
-  record[section][key] = value;
+  let finalValue = value;
+  if (path === 'student.dateOfBirth') {
+    finalValue = normalizeDateValue(value);
+  }
+  record[section][key] = finalValue;
 }
 
 /**

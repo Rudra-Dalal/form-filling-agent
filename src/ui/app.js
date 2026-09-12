@@ -98,6 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
           agentStatus: 'completed',
           statusMessage: 'Form completed and verified. Ready for human review.',
         });
+        const reviewSec = document.getElementById('review-section');
+        const reviewSum = document.getElementById('review-summary');
+        if (reviewSec) reviewSec.hidden = false;
+        if (reviewSum) reviewSum.textContent = evt.summary || 'All fields filled and verified.';
         appendLog(`✅ Done: ${evt.summary}`, 'complete');
         break;
 

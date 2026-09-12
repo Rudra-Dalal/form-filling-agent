@@ -19,6 +19,17 @@ const FORM_TOOLS = [
     },
   },
   {
+    name: 'clear_field',
+    description: 'Clear the existing content of a text input, textarea, or contenteditable element.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        element_index: { type: 'integer', description: 'Index of the element to clear' },
+      },
+      required: ['element_index'],
+    },
+  },
+  {
     name: 'select_option',
     description: 'Choose an option from a <select> dropdown by its visible label text.',
     input_schema: {

@@ -219,3 +219,57 @@ button:disabled {
 .log-error { color: #f85149; }
 .log-prompt { color: #f0883e; }
 .log-complete { color: #56d364; font-weight: 600; }
+
+.status-message {
+  font-size: 13px;
+  color: #58a6ff;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #8b949e;
+  cursor: pointer;
+}
+
+.checkbox-inline input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #238636;
+}
+
+.review {
+  border: 1px solid #238636;
+  background: #0f1d13;
+}
+
+.review h2 {
+  color: #3fb950;
+}
+
+.review-box {
+  padding: 8px 0;
+}
+
+.review-summary {
+  font-size: 13px;
+  color: #c9d1d9;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.review-notice {
+  background: #161b22;
+  border-left: 3px solid #d29922;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #e3b341;
+}
+
+.review-notice strong {
+  color: #f0883e;
+}

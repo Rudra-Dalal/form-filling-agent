@@ -1,8 +1,8 @@
 const { chromium } = require('playwright');
 const { inspectPage } = require('./page-inspector');
-const { fillText, selectOption, setCheckbox, clickElement } = require('./actions');
+const { fillText, clearField, selectOption, setCheckbox, clickElement } = require('./actions');
 const { verifyField } = require('./verifier');
-const { BrowserError } = require('../shared/errors');
+const { BrowserActionError } = require('../shared/errors');
 const { HEADLESS, DEFAULT_NAV_TIMEOUT_MS } = require('../shared/constants');
 
 class BrowserSession {
@@ -26,7 +26,7 @@ class BrowserSession {
         await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       }
     } catch (err) {
-      throw new BrowserError(`Failed to launch browser: ${err.message}`);
+      throw new BrowserActionError(`Failed to launch browser: ${err.message}`);
     }
   }
 
@@ -55,6 +55,15 @@ class BrowserSession {
   async fillText(elementIndex, value) {
     this._ensurePage();
     return fillText(this.page, elementIndex, value);
+  }
+
+  /**
+   * Clears value in the element at elementIndex.
+   * @param {number} elementIndex
+   */
+  async clearField(elementIndex) {
+    this._ensurePage();
+    return clearField(this.page, elementIndex);
   }
 
   /**
@@ -122,7 +131,7 @@ class BrowserSession {
 
   _ensurePage() {
     if (!this.page) {
-      throw new BrowserError('Browser page is not open. Launch the browser first.');
+      throw new BrowserActionError('Browser page is not open. Launch the browser first.');
     }
   }
 }

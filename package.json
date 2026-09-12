@@ -6,7 +6,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
+    "build:ui": "vite build",
     "test": "node tests/run-all.js",
+    "test:backend": ".\\.venv\\Scripts\\pytest backend/tests",
     "postinstall": "playwright install chromium"
   },
   "author": "Rudra Dalal",
@@ -17,9 +19,17 @@
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",
     "playwright": "^1.48.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "ws": "^8.21.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^33.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   }
 }

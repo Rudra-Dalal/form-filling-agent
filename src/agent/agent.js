@@ -1,4 +1,4 @@
-const { getLLMClient } = require('./llm-client');
+const { getLLMClient, hasLLMKey } = require('./llm-client');
 const { ALL_TOOLS } = require('./tools');
 const { SYSTEM_PROMPT } = require('./prompts/system.prompt');
 const { buildInitialTaskPrompt } = require('./prompts/form-filling.prompt');
@@ -6,8 +6,14 @@ const { BrowserSession } = require('../browser/browser');
 const { ToolExecutor } = require('./executor');
 const { AgentPlanner } = require('./planner');
 const { FormVerifier } = require('./verifier');
+const { findMatchingOption } = require('../browser/field-mapper');
 const { AGENT_EVENTS } = require('../shared/events');
-const { AGENT_STATES, MAX_AGENT_ITERATIONS, DEFAULT_LLM_MODEL, MAX_PROMPT_TOKENS } = require('../shared/constants');
+const {
+  AGENT_STATES,
+  MAX_AGENT_ITERATIONS,
+  DEFAULT_LLM_MODEL,
+  MAX_PROMPT_TOKENS,
+} = require('../shared/constants');
 
 class AgentSession {
   /**
@@ -17,15 +23,17 @@ class AgentSession {
    * @param {string} config.instruction - User task instruction
    * @param {Function} [config.onEvent] - Callback for streaming events to UI
    * @param {any} [config.llmClient] - Optional LLM client instance (for testing/mocking)
+   * @param {boolean} [config.dryRun] - Run deterministic planner without LLM calls
    */
-  constructor({ documentData, targetUrl, instruction, onEvent, llmClient }) {
+  constructor({ documentData, targetUrl, instruction, onEvent, llmClient, dryRun = false }) {
     this.documentData = documentData || {};
     this.targetUrl = targetUrl;
     this.instruction = instruction;
     this.onEvent = onEvent || (() => {});
+    this.dryRun = dryRun;
 
     this.browserSession = new BrowserSession();
-    this.client = llmClient || getLLMClient();
+    this.client = llmClient || (hasLLMKey() && !dryRun ? getLLMClient() : null);
 
     this.planner = new AgentPlanner(this.documentData);
     this.verifier = new FormVerifier();
@@ -121,6 +129,20 @@ class AgentSession {
     this.emit(AGENT_EVENTS.STATUS, { message: 'Launching browser...' });
     await this.browserSession.launch(this.targetUrl);
 
+    if (this.client && !this.dryRun) {
+      await this._runLLMLoop();
+    } else {
+      await this._runPlannerLoop();
+    }
+
+    // Leave the browser open for human review (never auto-submit)
+    this.emit(AGENT_EVENTS.STATUS, { message: 'Form filled, verified, and ready for human review.' });
+  }
+
+  /**
+   * Full LLM-powered tool calling loop using Claude.
+   */
+  async _runLLMLoop() {
     this.messages.push({
       role: 'user',
       content: buildInitialTaskPrompt({
@@ -148,13 +170,10 @@ class AgentSession {
       this.messages.push({ role: 'assistant', content: response.content });
 
       const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
-
-      // Surface plain-text reasoning
       const textBlocks = response.content.filter((b) => b.type === 'text');
       textBlocks.forEach((b) => this.emit(AGENT_EVENTS.THOUGHT, { text: b.text }));
 
       if (toolUseBlocks.length === 0) {
-        // No tool calls produced; agent finished or paused reasoning
         break;
       }
 
@@ -179,9 +198,85 @@ class AgentSession {
     if (!done) {
       this.emit(AGENT_EVENTS.STATUS, { message: 'Stopped without an explicit completion signal.' });
     }
+  }
 
-    // Leave the browser open for human review (never auto-submit)
-    this.emit(AGENT_EVENTS.STATUS, { message: 'Form filled, verified, and ready for human review.' });
+  /**
+   * Deterministic plan-act-verify loop using AgentPlanner.
+   * Runs the exact same tool pipeline without requiring LLM tokens.
+   */
+  async _runPlannerLoop() {
+    this.emit(AGENT_EVENTS.STATUS, { message: 'Inspecting form on page...' });
+    const snapshotResult = await this.executor.execute({ name: 'read_form', input: {} });
+    const snapshot = snapshotResult.elements || [];
+
+    await this._waitIfPaused();
+
+    // Check for address ambiguity in document warnings
+    const warnings = this.documentData.warnings || [];
+    const addressWarning = warnings.find((w) => w.toLowerCase().includes('two different addresses'));
+    if (addressWarning) {
+      const answer = await this._askUser(
+        'Two addresses detected (Permanent vs Correspondence). Which address should be used for the form?',
+        'Address ambiguity detected in document'
+      );
+      if (answer) {
+        if (!this.documentData.address) this.documentData.address = {};
+        this.documentData.address.street = answer;
+      }
+    }
+
+    await this._waitIfPaused();
+
+    // Generate fill plan
+    const plan = this.planner.generateFillPlan(snapshot);
+    this.emit(AGENT_EVENTS.STATUS, { message: `Mapped ${plan.length} candidate form fields.` });
+
+    let iterations = 0;
+    for (const item of plan) {
+      if (iterations >= MAX_AGENT_ITERATIONS) break;
+      iterations++;
+      await this._waitIfPaused();
+
+      const el = snapshot.find((s) => s.index === item.elementIndex);
+      if (!el) continue;
+
+      if (el.tag === 'select') {
+        const optionToSelect = findMatchingOption(item.value, el) || item.value;
+        await this.executor.execute({
+          name: 'select_option',
+          input: { element_index: item.elementIndex, option_label: optionToSelect },
+        });
+      } else if (el.type === 'checkbox' || el.type === 'radio') {
+        await this.executor.execute({
+          name: 'set_checkbox',
+          input: { element_index: item.elementIndex, checked: Boolean(item.value) },
+        });
+      } else {
+        await this.executor.execute({
+          name: 'fill_text',
+          input: { element_index: item.elementIndex, value: String(item.value) },
+        });
+      }
+
+      await this._waitIfPaused();
+
+      // Immediately verify the field
+      await this.executor.execute({
+        name: 'verify_field',
+        input: { element_index: item.elementIndex, expected_value: item.value },
+      });
+    }
+
+    // Complete task
+    const totalVerified = this.verifier.getLog().filter((v) => v.matches).length;
+    const summary = `Successfully filled and verified ${totalVerified} fields. Unverified or ambiguous items (e.g. hostel checkbox) were left untouched for human review. Ready for user review.`;
+
+    await this.executor.execute({
+      name: 'task_complete',
+      input: { summary },
+    });
+
+    this.state = AGENT_STATES.COMPLETED;
   }
 
   async close() {

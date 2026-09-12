@@ -41,6 +41,21 @@ class AgentPlanner {
     checkCategory('parent', parent);
     checkCategory('address', address);
 
+    // Also include unmapped document fields (e.g. Applying for Grade, Blood Group)
+    const unmapped = this.documentData.unmapped || [];
+    for (const item of unmapped) {
+      if (!item || !item.value) continue;
+      const match = findBestFieldMatch(item.label, formSnapshot);
+      if (match && !this.filledFields.has(match.index) && !candidates.some((c) => c.elementIndex === match.index)) {
+        candidates.push({
+          elementIndex: match.index,
+          label: match.label,
+          docKey: item.label,
+          value: item.value,
+        });
+      }
+    }
+
     return candidates;
   }
 

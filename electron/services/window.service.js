@@ -20,9 +20,15 @@ class WindowService {
       },
     });
 
-    // Load from src/ui/index.html
-    const indexPath = path.join(__dirname, '..', '..', 'src', 'ui', 'index.html');
-    this.mainWindow.loadFile(indexPath);
+    const fs = require('fs');
+    const distPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
+    const legacyPath = path.join(__dirname, '..', '..', 'src', 'ui', 'index.html');
+
+    if (fs.existsSync(distPath)) {
+      this.mainWindow.loadFile(distPath);
+    } else {
+      this.mainWindow.loadFile(legacyPath);
+    }
 
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;

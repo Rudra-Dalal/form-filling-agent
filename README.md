@@ -298,11 +298,13 @@ form-filling-agent/
 - Value verification after every fill operation.
 - Real-time event streaming to the desktop UI.
 - Interactive user clarification for missing or conflicting document data.
+- Interactive user clarification for missing or conflicting document data.
 - Live pause, resume, and human takeover/give-back controls.
 - Safe termination state: `"Form filled, verified, and ready for human review."`
+- Hybrid execution: Claude LLM mode when API key is provided, or deterministic dry-run mode for local offline validation.
 
 ### Explicitly Excluded from Phase 1:
-- **No Form Submission**: The agent must never click "Submit", "Apply", or finalize payment.
+- **No Form Submission**: The agent must never click "Submit", "Apply", or finalize payment. Any attempt to click a submit-intent button throws `SafetyViolationError`.
 - **No Unrelated Navigation**: The agent cannot browse arbitrary websites.
 - **No Arbitrary System Control**: The agent cannot execute shell commands or access arbitrary files.
 
@@ -311,9 +313,9 @@ form-filling-agent/
 ## 8. Installation & Setup
 
 ### Prerequisites
-- Node.js (v18 or higher recommended)
+- Node.js (v18 or higher recommended; v20+ automatically loads `.env`)
 - Chromium browser dependencies (installed automatically via Playwright postinstall)
-- Anthropic Claude API Key
+- Anthropic Claude API Key (optional for deterministic dry-run mode; required for LLM reasoning)
 
 ### Step 1: Install Dependencies
 ```bash
@@ -321,7 +323,7 @@ npm install
 ```
 *(The postinstall script automatically installs Playwright's Chromium binary.)*
 
-### Step 2: Configure Environment
+### Step 2: Configure Environment (Optional for dry run)
 Create a `.env` file in the project root:
 ```bash
 cp .env.example .env
@@ -330,6 +332,7 @@ Add your API key:
 ```env
 ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
 ```
+*(When present, `.env` is loaded automatically by Electron without third-party dependencies.)*
 
 ---
 
@@ -338,25 +341,67 @@ ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
 To launch the desktop application:
 ```bash
 npm start
+# or
+npm run dev
 ```
+
+### End-to-End Fixture Dry Run (Zero-Config Test)
+You can test the entire document extraction, browser navigation, field mapping, filling, and verification pipeline without an API key using the included test fixtures:
+
+1. Launch the app: `npm start`
+2. Click **"Choose Document..."** and select:
+   `tests/fixtures/sample-admission-record.docx`
+3. In **Target Form URL**, enter the local file URL for the sample form:
+   `file:///D:/CODER%20HI%20KEHDE/Projects/form-filling-agent/tests/fixtures/sample-registration-form.html`
+   *(or copy the file's path into your browser to get the exact file:// URL)*
+4. Keep the instruction: `Read this document and fill the student registration form.`
+5. Ensure **"Deterministic Dry Run"** is checked (if running without an API key).
+6. Click **"Start Form-Filling Agent"**.
+7. Watch the visible Chromium window open, inspect the form, fill each field, verify every value, leave the unmapped hostel checkbox untouched, ignore the submit button, and reach **READY FOR REVIEW**.
 
 ---
 
-## 10. Running Tests
+## 10. Running Tests & Architecture Validation
 
-Run the full automated test suite (using Node.js's built-in `node:test` runner):
+The repository includes dual test suites validating both the Electron/JS baseline and the Python FastAPI backend:
+
+### 1. JavaScript Baseline Tests (25 Tests)
 ```bash
 npm test
 ```
+- **Document Suite** (`tests/document/document.test.js`): PDF/DOCX/XLSX parsing, canonical normalization, date normalization, ambiguity warnings, schema validation.
+- **Agent Suite** (`tests/agent/agent.test.js`): Tool definitions, system prompt rules, action schema validation, strict `submit_form` omission invariant.
+- **Browser Suite** (`tests/browser/browser.test.js`): Control classifier, filter fillable fields, semantic field mapper scoring and synonyms, FormVerifier tracking.
+- **Browser Actions Suite** (`tests/browser/actions.test.js`): Playwright text filling, clearField, selectOption (case-insensitive & label/value), setCheckbox, verifyField with date/whitespace normalization, and strict `SafetyViolationError` when clicking submit buttons.
+- **Agent Integration Suite** (`tests/integration/workflow.test.js`): `AgentSession` lifecycle test with mock LLM (pause/resume, takeover, ask_user round-trip, completion).
+- **Fixture Dry-Run Integration Suite** (`tests/integration/fixture-dryrun.test.js`): Full end-to-end integration test reading `sample-admission-record.docx` and filling `sample-registration-form.html` in a real browser session.
 
-### Test Coverage:
-- **Document Suite**: PDF/DOCX/XLSX parsing, canonical normalization, schema validation.
-- **Agent Suite**: Tool existence, system prompt rules, action schema, strict `submit_form` omission check.
-- **Browser Suite**: Control classification, semantic field matching, value verification logic.
-- **Integration Suite**: End-to-end `AgentSession` lifecycle test with mock LLM and browser (covers pause/resume, takeover, ask_user round-trip, and completion).
+### 2. Python FastAPI Backend Tests (28 Tests)
+```bash
+npm run test:backend
+# or: .\.venv\Scripts\pytest backend/tests
+```
+- **Document Suite** (`backend/tests/document/test_document.py`): Word docx parser, PDF parser, Excel parser, canonical schema validator.
+- **Browser Suite** (`backend/tests/browser/test_browser.py`, `backend/tests/browser/test_actions.py`): Form element detector, Playwright action execution, live element verifier.
+- **Tools & Policy Engine** (`backend/tests/registry/test_tools.py`, `backend/tests/policy/test_policy.py`, `backend/tests/policy/test_final_safety.py`): ToolRegistry verification, PolicyEngine state machine, invariant enforcement rejecting submit-intent elements (`SafetyViolationError`).
+- **Agent & Workflow** (`backend/tests/agent/test_agent.py`, `backend/tests/integration/test_workflow.py`, `backend/tests/integration/test_fixture_dryrun.py`): Agent planner, executor, interactive ask_user round-trip, full fixture dry run.
+- **FastAPI Endpoints** (`backend/tests/api/test_api.py`): `/health`, `/documents/parse`, `/sessions` lifecycle.
+
+### 3. Frontend Build
+```bash
+npm run build:ui
+```
+Compiles the React + TypeScript frontend into `dist/` using Vite. Electron automatically serves the compiled bundle.
 
 ---
 
-## 11. License
+## 11. Known Limitations & Future Work (Phase 2)
+- Multi-page wizard forms with conditional branching are planned for Phase 2.
+- CAPTCHAs require human takeover (supported via the "Take Over Browser" button).
+- File uploads directly into target web forms are out of Phase-1 scope.
+
+---
+
+## 12. License
 
 MIT License. See [LICENSE](LICENSE) for details.

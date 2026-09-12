@@ -39,10 +39,14 @@ function initTaskInput({ state, api, onLog }) {
 
     onLog(`Initiating form-filling task for: ${currentState.targetUrl}`);
 
+    const dryRunCheck = document.getElementById('dry-run-check');
+    const isDryRun = Boolean(dryRunCheck && dryRunCheck.checked);
+
     const res = await api.startAgent({
       documentData: currentState.documentData,
       targetUrl: currentState.targetUrl,
       instruction: currentState.instruction,
+      dryRun: isDryRun,
     });
 
     if (!res.ok) {

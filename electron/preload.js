@@ -1,5 +1,18 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { IPC_CHANNELS } = require('../src/shared/events');
+
+console.log('[PRELOAD] Running preload script...');
+
+const IPC_CHANNELS = {
+  DOC_PICK_AND_PARSE: 'doc:pick-and-parse',
+  AGENT_START: 'agent:start',
+  AGENT_PAUSE: 'agent:pause',
+  AGENT_RESUME: 'agent:resume',
+  AGENT_TAKEOVER: 'agent:take-over',
+  AGENT_GIVE_BACK: 'agent:give-back',
+  AGENT_ANSWER: 'agent:answer',
+  AGENT_EVENT: 'agent:event',
+  BROWSER_SNAPSHOT: 'browser:snapshot',
+};
 
 /**
  * Secure bridge exposing only explicitly permitted capabilities to the renderer.
@@ -7,7 +20,8 @@ const { IPC_CHANNELS } = require('../src/shared/events');
  */
 const api = {
   // Document capabilities
-  pickAndParseDocument: () => ipcRenderer.invoke(IPC_CHANNELS.DOC_PICK_AND_PARSE),
+  pickAndParseDocument: (opts) => ipcRenderer.invoke(IPC_CHANNELS.DOC_PICK_AND_PARSE, opts),
+  selectDocument: (opts) => ipcRenderer.invoke(IPC_CHANNELS.DOC_PICK_AND_PARSE, opts),
 
   // Agent task lifecycle controls
   startAgent: (payload) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_START, payload),
@@ -29,6 +43,13 @@ const api = {
   },
 };
 
-// Expose on both window.agentAPI (existing) and window.eigiAgent (target EIGI spec)
-contextBridge.exposeInMainWorld('agentAPI', api);
-contextBridge.exposeInMainWorld('eigiAgent', api);
+try {
+  // Expose on window.agentAPI, window.eigiAgent, and window.electronAPI
+  contextBridge.exposeInMainWorld('agentAPI', api);
+  contextBridge.exposeInMainWorld('eigiAgent', api);
+  contextBridge.exposeInMainWorld('electronAPI', api);
+  console.log('[PRELOAD] Successfully exposed bridges in main world.');
+} catch (err) {
+  console.error('[PRELOAD] Failed to expose bridge:', err);
+}
+

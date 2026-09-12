@@ -60,6 +60,11 @@ class ToolExecutor {
           return { ok: true };
         }
 
+        case 'clear_field': {
+          await this.browserSession.clearField(input.element_index);
+          return { ok: true };
+        }
+
         case 'select_option': {
           await this.browserSession.selectOption(input.element_index, input.option_label);
           this.planner.recordFilled(input.element_index);

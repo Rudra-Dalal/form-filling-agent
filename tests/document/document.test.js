@@ -56,3 +56,30 @@ test('Document Parser - parseDocx successfully reads sample-admission-record.doc
   assert.ok(text.includes('Aditi Rakesh Sharma'));
   assert.ok(text.includes('Grade 8'));
 });
+
+test('Document Pipeline - parseDocument extracts structured canonical fields and warnings from docx fixture', async () => {
+  const path = require('node:path');
+  const { parseDocument } = require('../../src/document/extractor');
+  const fixturePath = path.join(__dirname, '..', 'fixtures', 'sample-admission-record.docx');
+
+  const result = await parseDocument(fixturePath, { dryRun: true });
+
+  assert.equal(result.student.fullName, 'Aditi Rakesh Sharma');
+  assert.equal(result.student.dateOfBirth, '2015-03-12'); // Normalized to ISO
+  assert.equal(result.student.gender, 'Female');
+  assert.equal(result.parent.fatherName, 'Rakesh Kumar Sharma');
+  assert.equal(result.parent.motherName, 'Sunita Sharma');
+  assert.equal(result.parent.contactNumber, '9876543210');
+  assert.equal(result.address.city, 'Nagpur');
+  assert.equal(result.address.state, 'Maharashtra');
+  assert.equal(result.address.pincode, '440001');
+
+  // Verify ambiguity detected for multiple addresses
+  assert.ok(result.warnings.length > 0);
+  assert.ok(result.warnings.some((w) => w.toLowerCase().includes('two different addresses')));
+
+  // Verify unmapped fields contains Applying for Grade
+  const gradeField = result.unmapped.find((f) => f.label === 'Applying for Grade');
+  assert.ok(gradeField);
+  assert.equal(gradeField.value, 'Grade 8');
+});
