@@ -1,34 +1,22 @@
 const Anthropic = require('@anthropic-ai/sdk');
-const { AgentError } = require('../shared/errors');
 
-let clientInstance = null;
+let client = null;
 
-/**
- * Returns a configured Anthropic client singleton.
- * @returns {Anthropic}
- */
 function getLLMClient() {
-  if (!clientInstance) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new AgentError(
-        'ANTHROPIC_API_KEY is not set. Add it to your environment before starting the app.'
+  if (!client) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error(
+        'ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key before starting the app.'
       );
     }
-    clientInstance = new Anthropic({ apiKey });
+    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
-  return clientInstance;
+  return client;
 }
 
-/**
- * Overrides the LLM client instance (useful for unit and integration testing).
- * @param {any} mockClient
- */
-function setLLMClient(mockClient) {
-  clientInstance = mockClient;
+/** Test-only escape hatch to inject a mock client without env vars. */
+function _setLLMClientForTests(mockClient) {
+  client = mockClient;
 }
 
-module.exports = {
-  getLLMClient,
-  setLLMClient,
-};
+module.exports = { getLLMClient, _setLLMClientForTests };

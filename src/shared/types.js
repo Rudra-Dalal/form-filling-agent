@@ -1,55 +1,49 @@
 /**
- * JSDoc type definitions for the form-filling agent architecture.
- *
- * @typedef {Object} DocumentField
- * @property {string} label - Human-readable label for the field
- * @property {string|number|boolean} value - Extracted value
- * @property {'high'|'medium'|'low'} confidence - Extraction confidence
- *
- * @typedef {Object} CanonicalStudent
- * @property {string} [fullName]
- * @property {string} [dateOfBirth]
- * @property {string} [gender]
- * @property {string} [bloodGroup]
- * @property {string} [nationality]
- *
- * @typedef {Object} CanonicalParent
- * @property {string} [fatherName]
- * @property {string} [motherName]
- * @property {string} [guardianName]
- * @property {string} [contactNumber]
- * @property {string} [email]
- *
- * @typedef {Object} CanonicalAddress
- * @property {string} [street]
- * @property {string} [city]
- * @property {string} [state]
- * @property {string} [pincode]
- * @property {string} [country]
- *
- * @typedef {Object} NormalizedDocument
- * @property {CanonicalStudent} student
- * @property {CanonicalParent} parent
- * @property {CanonicalAddress} address
- * @property {DocumentField[]} fields
+ * @typedef {Object} ExtractedField
+ * @property {string} label
+ * @property {string} value
+ * @property {'high'|'medium'|'low'} confidence
+ */
+
+/**
+ * @typedef {Object} DocumentExtractionResult
+ * @property {string} rawText
+ * @property {ExtractedField[]} fields
  * @property {string[]} warnings
- * @property {string} [rawText]
- *
- * @typedef {Object} DetectedFormField
- * @property {number} index - Numbered handle for the element
- * @property {string} tag - Tag name (input, select, textarea, etc.)
- * @property {string|null} type - Input type (text, checkbox, radio, etc.)
- * @property {string} label - Inferred label text
- * @property {string|boolean} currentValue - Current on-page value
- * @property {boolean} [checked] - Whether checkbox/radio is checked
- * @property {string[]} [options] - Available dropdown options
- * @property {boolean} [required] - Whether field is marked required
- *
- * @typedef {Object} AgentAction
- * @property {string} action - Action or tool name
- * @property {number|string} [target] - Target element index or identifier
- * @property {any} [value] - Intended value to set
- * @property {string} [reason] - Reason for the action
+ */
+
+/**
+ * @typedef {Object} CanonicalStudentRecord
+ * @property {Object} student
+ * @property {string} [student.fullName]
+ * @property {string} [student.dateOfBirth]
+ * @property {string} [student.gender]
+ * @property {Object} parent
+ * @property {string} [parent.fatherName]
+ * @property {string} [parent.motherName]
+ * @property {string} [parent.contactNumber]
+ * @property {Object} address
+ * @property {string} [address.street]
+ * @property {string} [address.city]
+ * @property {string} [address.state]
+ * @property {string} [address.pincode]
+ */
+
+/**
+ * @typedef {Object} FormElementSnapshot
+ * @property {number} index
+ * @property {string} tag
+ * @property {string|null} type
+ * @property {string} label
+ * @property {string} currentValue
+ * @property {boolean|undefined} checked
+ * @property {string[]|undefined} options
+ */
+
+/**
+ * @typedef {Object} AgentEvent
+ * @property {string} type
+ * @property {*} [payload]
  */
 
 module.exports = {};

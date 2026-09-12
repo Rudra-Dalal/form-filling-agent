@@ -1,17 +1,16 @@
 const XLSX = require('xlsx');
+const { DocumentParseError } = require('../../shared/errors');
 
-/**
- * Extracts plain text from an XLSX or XLS file formatted as CSV per sheet.
- * @param {string} filePath
- * @returns {Promise<string>}
- */
-async function parseXlsx(filePath) {
-  const workbook = XLSX.readFile(filePath);
-  const text = workbook.SheetNames.map((sheetName) => {
-    const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_csv(sheet);
-  }).join('\n\n');
-  return text || '';
+function parseXlsx(filePath) {
+  try {
+    const workbook = XLSX.readFile(filePath);
+    return workbook.SheetNames.map((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      return `# Sheet: ${sheetName}\n${XLSX.utils.sheet_to_csv(sheet)}`;
+    }).join('\n\n');
+  } catch (err) {
+    throw new DocumentParseError(`Failed to parse spreadsheet at ${filePath}: ${err.message}`);
+  }
 }
 
 module.exports = { parseXlsx };

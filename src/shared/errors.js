@@ -1,42 +1,43 @@
-/**
- * Domain-specific error classes for error classification and graceful handling.
- */
-
-class AgentError extends Error {
-  constructor(message, details = null) {
+class AppError extends Error {
+  constructor(message, code) {
     super(message);
-    this.name = 'AgentError';
-    this.details = details;
+    this.name = this.constructor.name;
+    this.code = code;
   }
 }
 
-class BrowserError extends Error {
-  constructor(message, details = null) {
-    super(message);
-    this.name = 'BrowserError';
-    this.details = details;
+/** Document could not be read or parsed (unsupported type, corrupt file, etc). */
+class DocumentParseError extends AppError {
+  constructor(message) {
+    super(message, 'DOCUMENT_PARSE_ERROR');
   }
 }
 
-class DocumentParseError extends Error {
-  constructor(message, filePath = null) {
-    super(message);
-    this.name = 'DocumentParseError';
-    this.filePath = filePath;
+/** The LLM extraction step returned unusable or unparseable output. */
+class ExtractionError extends AppError {
+  constructor(message) {
+    super(message, 'EXTRACTION_ERROR');
   }
 }
 
-class ValidationError extends Error {
-  constructor(message, field = null) {
-    super(message);
-    this.name = 'ValidationError';
-    this.field = field;
+/** A Playwright/browser action failed (element not found, navigation failed, etc). */
+class BrowserActionError extends AppError {
+  constructor(message) {
+    super(message, 'BROWSER_ACTION_ERROR');
+  }
+}
+
+/** The agent loop hit a boundary it should never cross (e.g. attempted submit). */
+class SafetyViolationError extends AppError {
+  constructor(message) {
+    super(message, 'SAFETY_VIOLATION');
   }
 }
 
 module.exports = {
-  AgentError,
-  BrowserError,
+  AppError,
   DocumentParseError,
-  ValidationError,
+  ExtractionError,
+  BrowserActionError,
+  SafetyViolationError,
 };

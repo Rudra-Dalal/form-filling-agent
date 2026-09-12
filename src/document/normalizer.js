@@ -1,68 +1,70 @@
-const { createEmptyCanonicalDocument } = require('../agent/schemas/document.schema');
+const { emptyCanonicalRecord } = require('../agent/schemas/document.schema');
+
+// Ordered list of (canonical path, list of label keywords to match against,
+// lowercased). First match wins, so more specific keywords should precede
+// more general ones (e.g. "father" before a bare "name").
+const LABEL_RULES = [
+  ['student.fullName', ['student name', "student's name", 'full name', 'candidate name']],
+  ['student.dateOfBirth', ['date of birth', 'dob', 'birth date']],
+  ['student.gender', ['gender', 'sex']],
+  ['parent.fatherName', ["father's name", 'father name', 'guardian name (father)']],
+  ['parent.motherName', ["mother's name", 'mother name', 'guardian name (mother)']],
+  ['parent.contactNumber', ['contact number', 'phone number', 'mobile number', 'contact no']],
+  ['address.pincode', ['pincode', 'pin code', 'zip code', 'postal code']],
+  ['address.state', ['state']],
+  ['address.city', ['city', 'town', 'district']],
+  ['address.street', ['address', 'street', 'residential address']],
+];
+
+function matchRule(label) {
+  const lower = label.toLowerCase().trim();
+  for (const [path, keywords] of LABEL_RULES) {
+    if (keywords.some((kw) => lower.includes(kw))) return path;
+  }
+  return null;
+}
+
+function setPath(record, path, value) {
+  const [section, key] = path.split('.');
+  record[section][key] = value;
+}
 
 /**
- * Normalizes extracted field key-value pairs into a predictable canonical structure.
- * Maps common aliases for student, parent, and address fields.
+ * Turns {label, value, confidence}[] from field extraction into the
+ * canonical record. Fields that don't match any known rule are returned
+ * separately as `unmapped` rather than silently dropped, since a school
+ * form may still need them and the agent's ask_user tool can surface them.
  *
- * @param {Array<{label: string, value: string|number, confidence: string}>} fields
- * @param {string[]} [warnings=[]]
- * @param {string} [rawText='']
- * @returns {import('../shared/types').NormalizedDocument}
+ * @param {import('../shared/types').ExtractedField[]} fields
  */
-function normalizeDocumentFields(fields = [], warnings = [], rawText = '') {
-  const normalized = createEmptyCanonicalDocument();
-  normalized.fields = Array.isArray(fields) ? [...fields] : [];
-  normalized.warnings = Array.isArray(warnings) ? [...warnings] : [];
-  normalized.rawText = rawText || '';
+function normalizeFields(fields) {
+  const record = emptyCanonicalRecord();
+  const unmapped = [];
 
-  const normalizeKey = (str) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  for (const item of normalized.fields) {
-    if (!item || !item.label) continue;
-    const key = normalizeKey(item.label);
-    const val = String(item.value ?? '').trim();
-
-    // Student mapping
-    if (key.includes('studentname') || key === 'name' || key.includes('fullname')) {
-      if (!normalized.student.fullName) normalized.student.fullName = val;
-    } else if (key.includes('dob') || key.includes('dateofbirth') || key.includes('birthdate')) {
-      if (!normalized.student.dateOfBirth) normalized.student.dateOfBirth = val;
-    } else if (key === 'gender' || key === 'sex') {
-      if (!normalized.student.gender) normalized.student.gender = val;
-    } else if (key.includes('bloodgroup') || key.includes('bloodtype')) {
-      if (!normalized.student.bloodGroup) normalized.student.bloodGroup = val;
-    } else if (key.includes('nationality') || key.includes('citizenship')) {
-      if (!normalized.student.nationality) normalized.student.nationality = val;
-    }
-
-    // Parent mapping
-    else if (key.includes('father') || key.includes('fathername')) {
-      if (!normalized.parent.fatherName) normalized.parent.fatherName = val;
-    } else if (key.includes('mother') || key.includes('mothername')) {
-      if (!normalized.parent.motherName) normalized.parent.motherName = val;
-    } else if (key.includes('guardian') || key.includes('guardianname')) {
-      if (!normalized.parent.guardianName) normalized.parent.guardianName = val;
-    } else if (key.includes('phone') || key.includes('mobile') || key.includes('contact')) {
-      if (!normalized.parent.contactNumber) normalized.parent.contactNumber = val;
-    } else if (key.includes('email') || key.includes('mail')) {
-      if (!normalized.parent.email) normalized.parent.email = val;
-    }
-
-    // Address mapping
-    else if (key.includes('street') || key.includes('addressline') || key.includes('address')) {
-      if (!normalized.address.street) normalized.address.street = val;
-    } else if (key.includes('city') || key.includes('town')) {
-      if (!normalized.address.city) normalized.address.city = val;
-    } else if (key.includes('state') || key.includes('province')) {
-      if (!normalized.address.state) normalized.address.state = val;
-    } else if (key.includes('pincode') || key.includes('zip') || key.includes('postalcode')) {
-      if (!normalized.address.pincode) normalized.address.pincode = val;
-    } else if (key.includes('country')) {
-      if (!normalized.address.country) normalized.address.country = val;
+  for (const field of fields) {
+    const path = matchRule(field.label);
+    if (path) {
+      setPath(record, path, field.value);
+    } else {
+      unmapped.push(field);
     }
   }
 
-  return normalized;
+  return { record, unmapped };
 }
 
-module.exports = { normalizeDocumentFields };
+function normalizeDocumentFields(fields = [], warnings = [], rawText = '') {
+  const { record, unmapped } = normalizeFields(fields);
+  return {
+    student: record.student,
+    parent: record.parent,
+    address: record.address,
+    record,
+    unmapped,
+    fields,
+    warnings: warnings || [],
+    rawText: rawText || '',
+  };
+}
+
+module.exports = { normalizeFields, matchRule, normalizeDocumentFields };

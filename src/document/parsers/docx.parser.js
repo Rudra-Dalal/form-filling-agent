@@ -1,13 +1,13 @@
 const mammoth = require('mammoth');
+const { DocumentParseError } = require('../../shared/errors');
 
-/**
- * Extracts plain text from a DOCX file.
- * @param {string} filePath
- * @returns {Promise<string>}
- */
 async function parseDocx(filePath) {
-  const { value } = await mammoth.extractRawText({ path: filePath });
-  return value || '';
+  try {
+    const { value } = await mammoth.extractRawText({ path: filePath });
+    return value;
+  } catch (err) {
+    throw new DocumentParseError(`Failed to parse DOCX at ${filePath}: ${err.message}`);
+  }
 }
 
 module.exports = { parseDocx };

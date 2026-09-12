@@ -1,30 +1,45 @@
-/**
- * Global configuration constants for form-filling-agent.
- */
+const SUPPORTED_DOCUMENT_EXTENSIONS = Object.freeze(['.pdf', '.docx', '.xlsx', '.xls']);
 
-module.exports = {
-  // Agent configuration
-  MAX_AGENT_ITERATIONS: 40,
-  DEFAULT_LLM_MODEL: 'claude-sonnet-4-6',
+const LIMITS = Object.freeze({
+  MAX_AGENT_ITERATIONS: 40, // safety cap on the plan->act->observe loop
+  MAX_DOCUMENT_CHARS_FOR_EXTRACTION: 20000, // truncate raw text sent to the LLM
+  MAX_TOOL_RESULT_CHARS: 4000,
   MAX_PROMPT_TOKENS: 1500,
   MAX_EXTRACTION_TOKENS: 2000,
-  RAW_TEXT_MAX_LENGTH: 20000,
+});
 
-  // Browser configuration
+const MODELS = Object.freeze({
+  DEFAULT: 'claude-sonnet-4-6',
+});
+
+const CONFIDENCE_LEVELS = Object.freeze({
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
+});
+
+const AGENT_STATES = Object.freeze({
+  IDLE: 'idle',
+  RUNNING: 'running',
+  PAUSED: 'paused',
+  WAITING_FOR_USER: 'waiting_for_user',
+  HUMAN_TAKEOVER: 'human_takeover',
+  COMPLETED: 'completed',
+  ERROR: 'error',
+});
+
+module.exports = {
+  SUPPORTED_DOCUMENT_EXTENSIONS,
+  SUPPORTED_DOC_EXTENSIONS: SUPPORTED_DOCUMENT_EXTENSIONS,
+  LIMITS,
+  MODELS,
+  CONFIDENCE_LEVELS,
+  AGENT_STATES,
+  MAX_AGENT_ITERATIONS: LIMITS.MAX_AGENT_ITERATIONS,
+  DEFAULT_LLM_MODEL: MODELS.DEFAULT,
+  MAX_PROMPT_TOKENS: LIMITS.MAX_PROMPT_TOKENS,
+  MAX_EXTRACTION_TOKENS: LIMITS.MAX_EXTRACTION_TOKENS,
+  RAW_TEXT_MAX_LENGTH: LIMITS.MAX_DOCUMENT_CHARS_FOR_EXTRACTION,
   DEFAULT_NAV_TIMEOUT_MS: 30000,
   HEADLESS: false,
-
-  // Supported document extensions
-  SUPPORTED_DOC_EXTENSIONS: ['.pdf', '.docx', '.xlsx', '.xls'],
-
-  // Agent task states
-  AGENT_STATES: {
-    IDLE: 'idle',
-    RUNNING: 'running',
-    PAUSED: 'paused',
-    WAITING_FOR_USER: 'waiting_for_user',
-    HUMAN_TAKEOVER: 'human_takeover',
-    COMPLETED: 'completed',
-    ERROR: 'error',
-  },
 };

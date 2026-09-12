@@ -1,53 +1,47 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeDocumentFields } = require('../../src/document/normalizer');
-const { validateDocumentData } = require('../../src/agent/schemas/document.schema');
 
-test('Document Layer - Normalizer maps extracted fields to canonical structure', () => {
-  const mockFields = [
-    { label: 'Student Full Name', value: 'Rahul Sharma', confidence: 'high' },
-    { label: 'Date of Birth', value: '2010-05-14', confidence: 'high' },
-    { label: 'Gender', value: 'Male', confidence: 'high' },
-    { label: 'Blood Group', value: 'B+', confidence: 'medium' },
-    { label: "Father's Name", value: 'Amit Sharma', confidence: 'high' },
-    { label: "Mother's Name", value: 'Pooja Sharma', confidence: 'high' },
-    { label: 'Mobile Number', value: '+91 9876543210', confidence: 'high' },
-    { label: 'Address Line', value: '123 MG Road', confidence: 'high' },
-    { label: 'City', value: 'Mumbai', confidence: 'high' },
-    { label: 'State', value: 'Maharashtra', confidence: 'high' },
-    { label: 'Pincode', value: '400001', confidence: 'high' },
-  ];
+const { normalizeFields, matchRule } = require('../../src/document/normalizer');
+const {
+  emptyCanonicalRecord,
+  validateCanonicalRecord,
+} = require('../../src/agent/schemas/document.schema');
 
-  const mockWarnings = ['Permanent vs correspondence address not distinguished'];
-
-  const normalized = normalizeDocumentFields(mockFields, mockWarnings, 'Raw text sample');
-
-  assert.equal(normalized.student.fullName, 'Rahul Sharma');
-  assert.equal(normalized.student.dateOfBirth, '2010-05-14');
-  assert.equal(normalized.student.gender, 'Male');
-  assert.equal(normalized.student.bloodGroup, 'B+');
-  assert.equal(normalized.parent.fatherName, 'Amit Sharma');
-  assert.equal(normalized.parent.motherName, 'Pooja Sharma');
-  assert.equal(normalized.parent.contactNumber, '+91 9876543210');
-  assert.equal(normalized.address.street, '123 MG Road');
-  assert.equal(normalized.address.city, 'Mumbai');
-  assert.equal(normalized.address.state, 'Maharashtra');
-  assert.equal(normalized.address.pincode, '400001');
-
-  // Verify schema validation
-  const validation = validateDocumentData(normalized);
-  assert.equal(validation.valid, true);
-  assert.equal(validation.errors.length, 0);
+test('matchRule maps common label variants to canonical paths', () => {
+  assert.equal(matchRule('Date of Birth'), 'student.dateOfBirth');
+  assert.equal(matchRule('DOB'), 'student.dateOfBirth');
+  assert.equal(matchRule("Father's Name"), 'parent.fatherName');
+  assert.equal(matchRule('Pin Code'), 'address.pincode');
+  assert.equal(matchRule('Favorite Color'), null);
 });
 
-test('Document Layer - Normalizer handles empty or partial input gracefully', () => {
-  const normalized = normalizeDocumentFields([], []);
-  assert.equal(normalized.student.fullName, '');
-  assert.equal(normalized.parent.fatherName, '');
-  assert.equal(normalized.address.city, '');
-  assert.equal(normalized.fields.length, 0);
-  assert.equal(normalized.warnings.length, 0);
+test('normalizeFields builds a canonical record and separates unmapped fields', () => {
+  const fields = [
+    { label: 'Student Full Name', value: 'Aditi Sharma', confidence: 'high' },
+    { label: 'DOB', value: '2015-03-12', confidence: 'high' },
+    { label: "Father's Name", value: 'Rakesh Sharma', confidence: 'high' },
+    { label: 'Blood Group', value: 'O+', confidence: 'medium' }, // not in schema
+  ];
 
-  const validation = validateDocumentData(normalized);
-  assert.equal(validation.valid, true);
+  const { record, unmapped } = normalizeFields(fields);
+
+  assert.equal(record.student.fullName, 'Aditi Sharma');
+  assert.equal(record.student.dateOfBirth, '2015-03-12');
+  assert.equal(record.parent.fatherName, 'Rakesh Sharma');
+  assert.equal(unmapped.length, 1);
+  assert.equal(unmapped[0].label, 'Blood Group');
+});
+
+test('emptyCanonicalRecord matches the shape validateCanonicalRecord expects', () => {
+  const record = emptyCanonicalRecord();
+  const { valid, unknownKeys } = validateCanonicalRecord(record);
+  assert.equal(valid, true);
+  assert.deepEqual(unknownKeys, []);
+});
+
+test('validateCanonicalRecord flags keys outside the canonical schema', () => {
+  const record = { student: { fullName: 'X' }, parent: {}, address: {}, extra: {} };
+  const { valid, unknownKeys } = validateCanonicalRecord(record);
+  assert.equal(valid, false);
+  assert.deepEqual(unknownKeys, ['extra']);
 });

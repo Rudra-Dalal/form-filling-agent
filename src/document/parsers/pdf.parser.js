@@ -1,15 +1,15 @@
 const fs = require('fs/promises');
 const pdfParse = require('pdf-parse');
+const { DocumentParseError } = require('../../shared/errors');
 
-/**
- * Extracts plain text from a PDF file buffer.
- * @param {string} filePath
- * @returns {Promise<string>}
- */
 async function parsePdf(filePath) {
-  const buffer = await fs.readFile(filePath);
-  const data = await pdfParse(buffer);
-  return data.text || '';
+  try {
+    const buffer = await fs.readFile(filePath);
+    const data = await pdfParse(buffer);
+    return data.text;
+  } catch (err) {
+    throw new DocumentParseError(`Failed to parse PDF at ${filePath}: ${err.message}`);
+  }
 }
 
 module.exports = { parsePdf };
