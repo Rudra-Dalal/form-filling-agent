@@ -123,11 +123,12 @@ export const App: React.FC = () => {
           appendLog(`🖐 ${evt.message || 'Human takeover active.'}`, 'info');
           break;
 
+        case 'ready_for_review':
         case 'complete':
-          setStatus('completed');
-          setStatusMessage('Form completed and verified. Ready for human review.');
+          setStatus('ready_for_review');
+          setStatusMessage('Form filled and verified. Ready for human review.');
           setReviewSummary(evt.summary || 'All fields filled and verified.');
-          appendLog(`✅ Done: ${evt.summary || 'Completed.'}`, 'complete');
+          appendLog(`✅ Ready for Review: ${evt.summary || 'Completed.'}`, 'complete');
           break;
 
         case 'error':
@@ -297,7 +298,7 @@ export const App: React.FC = () => {
       />
 
       <ReviewSection
-        visible={status === 'completed'}
+        visible={status === 'ready_for_review' || status === 'completed'}
         summary={reviewSummary}
       />
 

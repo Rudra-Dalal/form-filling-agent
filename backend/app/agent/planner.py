@@ -28,12 +28,19 @@ class AgentPlanner:
     def generate_fill_plan(self, form_snapshot: List[FormElement]) -> List[FillPlanCandidate]:
         candidates: List[FillPlanCandidate] = []
 
-        student = getattr(self.document_data, "student", None) or self.document_data.get("student", {})
-        parent = getattr(self.document_data, "parent", None) or self.document_data.get("parent", {})
-        address = getattr(self.document_data, "address", None) or self.document_data.get("address", {})
+        if hasattr(self.document_data, "model_dump"):
+            doc_dict = self.document_data.model_dump()
+        elif isinstance(self.document_data, dict):
+            doc_dict = self.document_data
+        else:
+            doc_dict = {}
 
-        def check_category(category_name: str, cat_obj: Any):
-            data_dict = cat_obj.model_dump() if hasattr(cat_obj, "model_dump") else cat_obj
+        student = doc_dict.get("student") or {}
+        parent = doc_dict.get("parent") or {}
+        address = doc_dict.get("address") or {}
+        unmapped = doc_dict.get("unmapped") or []
+
+        def check_category(category_name: str, data_dict: Dict[str, Any]):
             if isinstance(data_dict, dict):
                 for key, val in data_dict.items():
                     if not val:
@@ -53,10 +60,9 @@ class AgentPlanner:
         check_category("address", address)
 
         # Also process unmapped fields
-        unmapped = getattr(self.document_data, "unmapped", None) or self.document_data.get("unmapped", [])
         for item in unmapped:
-            item_val = getattr(item, "value", None) or (item.get("value") if isinstance(item, dict) else None)
-            item_lbl = getattr(item, "label", None) or (item.get("label") if isinstance(item, dict) else None)
+            item_val = item.get("value") if isinstance(item, dict) else getattr(item, "value", None)
+            item_lbl = item.get("label") if isinstance(item, dict) else getattr(item, "label", None)
             if not item_val or not item_lbl:
                 continue
             match = find_best_field_match(item_lbl, form_snapshot)

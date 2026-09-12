@@ -41,17 +41,28 @@ async def test_fixture_dryrun_end_to_end():
     # Await completion
     await run_task
 
-    # Verify session completed successfully
-    assert session.state == AgentState.COMPLETED
+    # Verify session completed successfully and reached READY_FOR_REVIEW
+    assert session.state == AgentState.READY_FOR_REVIEW
 
     # Verify field verifications occurred
     verify_events = [e for e in events if e["type"] == EventType.VERIFY_RESULT.value]
     assert len(verify_events) >= 8
     assert all(v["matches"] for v in verify_events)
 
-    # Verify complete event with summary
-    complete_evt = next((e for e in events if e["type"] == EventType.COMPLETE.value), None)
-    assert complete_evt is not None
-    assert "Ready for user review" in complete_evt["summary"]
+    # 3. VERIFY ACTUAL VALUES IN THE BROWSER DOM (not just logs/events)
+    page = session.browser_session.page
+    assert await page.input_value("#full-name") == "Aditi Rakesh Sharma"
+    assert await page.input_value("#birth-date") == "2015-03-12"
+    assert (await page.eval_on_selector("#gender", "el => el.value")).lower() == "female"
+    assert (await page.eval_on_selector("#grade", "el => el.value")) == "8"
+    assert await page.input_value("#father-name") == "Rakesh Kumar Sharma"
+    assert await page.input_value("#mother-name") == "Sunita Sharma"
+    assert await page.input_value("#contact") == "9876543210"
+    assert await page.input_value("#street") == "14 Lotus Lane"
+    assert await page.input_value("#city") == "Nagpur"
+    assert await page.input_value("#state") == "Maharashtra"
+    assert await page.input_value("#pincode") == "440001"
+    # Unverified / unmapped hostel accommodation checkbox remains untouched (never guessed)
+    assert await page.is_checked("#hosteler") is False
 
     await session.close()

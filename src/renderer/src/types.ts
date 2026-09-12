@@ -55,6 +55,7 @@ export type AgentStatus =
   | 'paused'
   | 'waiting_for_user'
   | 'human_takeover'
+  | 'ready_for_review'
   | 'completed'
   | 'error';
 
@@ -105,6 +106,7 @@ export interface AgentAPI {
   giveBack: () => Promise<{ ok: boolean; error?: string }>;
   answerPrompt: (promptId: string, answer: string) => Promise<{ ok: boolean; error?: string }>;
   getBrowserSnapshot: () => Promise<{ ok: boolean; snapshot?: any; error?: string }>;
+  getBrowserDomValues: () => Promise<{ ok: boolean; values?: Record<string, any>; error?: string }>;
   onAgentEvent: (callback: (evt: AgentEvent) => void) => () => void;
 }
 

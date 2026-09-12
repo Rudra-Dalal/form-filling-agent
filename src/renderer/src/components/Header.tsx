@@ -12,12 +12,14 @@ const STATUS_COLORS: Record<AgentStatus, string> = {
   paused: '#eab308',
   waiting_for_user: '#ec4899',
   human_takeover: '#8b5cf6',
+  ready_for_review: '#10b981',
   completed: '#10b981',
   error: '#ef4444',
 };
 
 export const Header: React.FC<HeaderProps> = ({ status, statusMessage }) => {
   const badgeColor = STATUS_COLORS[status] || '#6b7280';
+  const badgeText = status === 'ready_for_review' ? 'READY FOR REVIEW' : status.toUpperCase();
 
   return (
     <header>
@@ -28,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ status, statusMessage }) => {
           className="status-badge"
           style={{ backgroundColor: badgeColor }}
         >
-          {status.toUpperCase()}
+          {badgeText}
         </span>
       </div>
       <p id="status-message" className="status-message">

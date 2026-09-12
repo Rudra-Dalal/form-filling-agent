@@ -6,7 +6,7 @@ class AgentState(str, Enum):
     PAUSED = "paused"
     WAITING_FOR_USER = "waiting_for_user"
     HUMAN_TAKEOVER = "human_takeover"
-    COMPLETED = "completed"
+    READY_FOR_REVIEW = "ready_for_review"
     ERROR = "error"
 
 class EventType(str, Enum):
@@ -21,7 +21,8 @@ class EventType(str, Enum):
     PAUSED = "paused"
     RESUMED = "resumed"
     HANDED_OVER = "handed-over"
-    COMPLETE = "complete"
+    READY_FOR_REVIEW = "ready_for_review"
+    COMPLETE = "ready_for_review"
     ERROR = "error"
 
 class ControlClassification(str, Enum):

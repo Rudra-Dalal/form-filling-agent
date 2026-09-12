@@ -12,9 +12,11 @@ from ..schemas.document import (
 from .schemas import empty_canonical_record
 
 LABEL_RULES: List[Tuple[str, List[str]]] = [
-    ('student.fullName', ['student name', "student's name", 'applicant name', 'full name', 'candidate name']),
+    ('student.applicantName', ['applicant name']),
+    ('student.fullName', ['student name', "student's name", 'full name', 'candidate name']),
     ('student.dateOfBirth', ['date of birth', 'dob', 'birth date']),
     ('student.gender', ['gender', 'sex']),
+    ('student.grade', ['applying for grade', 'admission to grade', 'grade', 'class', 'standard']),
     ('parent.fatherName', ["father's name", 'father name', 'guardian name (father)']),
     ('parent.motherName', ["mother's name", 'mother name', 'guardian name (mother)']),
     ('parent.contactNumber', ['contact number', 'phone number', 'mobile number', 'contact no']),

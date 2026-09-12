@@ -112,6 +112,40 @@ async def user_answer_session(session_id: str, req: AnswerPromptRequest):
     session.provide_user_answer(req.promptId, req.answer)
     return {"ok": True}
 
+@router.get("/sessions/{session_id}/snapshot")
+async def get_session_snapshot(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found.")
+    snapshot = await session.browser_session.read_form()
+    return {"ok": True, "snapshot": [el.model_dump() for el in snapshot.elements]}
+
+@router.get("/sessions/{session_id}/dom-values")
+async def get_session_dom_values(session_id: str):
+    session = sessions.get(session_id)
+    if not session or not session.browser_session or not session.browser_session.page:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found or browser not active.")
+    page = session.browser_session.page
+    values = await page.evaluate("""
+    () => {
+        const result = {};
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(el => {
+            const key = el.id || el.name;
+            if (!key) return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                result[key] = el.checked;
+            } else if (el.tagName === 'SELECT') {
+                result[key] = el.value;
+            } else {
+                result[key] = el.value;
+            }
+        });
+        return result;
+    }
+    """)
+    return {"ok": True, "values": values}
+
 @router.websocket("/sessions/{session_id}/ws")
 async def session_websocket(websocket: WebSocket, session_id: str):
     await manager.connect(session_id, websocket)

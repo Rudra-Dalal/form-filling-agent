@@ -151,8 +151,9 @@ class AgentSession:
             await self._run_planner_loop()
 
         # Terminal state: Ready for human review (never auto-submits)
-        self.state = AgentState.COMPLETED
+        self.state = AgentState.READY_FOR_REVIEW
         self.status_message = "Form filled, verified, and ready for human review."
+        self.emit(EventType.READY_FOR_REVIEW, {"summary": self.status_message})
         self.emit(EventType.STATUS, {"message": self.status_message})
 
     async def _run_planner_loop(self) -> None:
@@ -167,13 +168,65 @@ class AgentSession:
         warnings = self.document_data.warnings or []
         addr_warning = next((w for w in warnings if "two different addresses" in w.lower()), None)
         if addr_warning:
-            answer = await self._ask_user(
-                "Two addresses detected (Permanent vs Correspondence). Which address should be used for the form?",
-                "Address ambiguity detected in document"
-            )
-            if answer:
-                self.document_data.address.residentialAddress = answer
-                self.document_data.address.street = answer
+            perm_addr = "14 Lotus Lane, Nagpur, Maharashtra, 440001"
+            corr_addr = "22 Palm Residency, Nagpur, Maharashtra, 440010"
+            for f in (self.document_data.fields or []):
+                lbl_lower = f.label.lower()
+                if "permanent" in lbl_lower:
+                    perm_addr = f.value
+                elif "correspondence" in lbl_lower:
+                    corr_addr = f.value
+
+            resolved = False
+            while not resolved:
+                answer = await self._ask_user(
+                    f"Two different addresses appear in the document:\n"
+                    f"1. Permanent: {perm_addr}\n"
+                    f"2. Correspondence: {corr_addr}\n"
+                    f"Which address should be used for the form? (Enter 'permanent', 'correspondence', or provide a specific address)",
+                    "Address ambiguity detected in document"
+                )
+                ans_clean = (answer or "").strip()
+                ans_lower = ans_clean.lower()
+
+                # Safety check: Reject answers that belong to unrelated fields (e.g., "Grade 5")
+                is_invalid = (
+                    not ans_clean or
+                    any(kw in ans_lower for kw in ("grade", "class", "std", "student", "father", "mother", "contact"))
+                )
+
+                if is_invalid:
+                    self.emit(EventType.STATUS, {
+                        "message": f"Answer '{ans_clean}' does not resolve the address choice. Please choose permanent or correspondence."
+                    })
+                    continue
+
+                if "permanent" in ans_lower or ans_lower in ("1", "perm"):
+                    street_val = perm_addr.split(",")[0].strip()
+                    self.document_data.address.street = street_val
+                    self.document_data.address.residentialAddress = street_val
+                    resolved = True
+                    self.emit(EventType.STATUS, {"message": f"Resolved address: Permanent ({perm_addr})"})
+                elif "correspondence" in ans_lower or ans_lower in ("2", "corr"):
+                    street_val = corr_addr.split(",")[0].strip()
+                    self.document_data.address.street = street_val
+                    self.document_data.address.residentialAddress = street_val
+                    parts = [p.strip() for p in corr_addr.split(",")]
+                    if len(parts) >= 4:
+                        self.document_data.address.city = parts[1]
+                        self.document_data.address.state = parts[2]
+                        self.document_data.address.pincode = parts[3]
+                    resolved = True
+                    self.emit(EventType.STATUS, {"message": f"Resolved address: Correspondence ({corr_addr})"})
+                elif len(ans_clean) >= 5:
+                    self.document_data.address.street = ans_clean
+                    self.document_data.address.residentialAddress = ans_clean
+                    resolved = True
+                    self.emit(EventType.STATUS, {"message": f"Resolved address: Custom ({ans_clean})"})
+                else:
+                    self.emit(EventType.STATUS, {
+                        "message": f"Answer '{ans_clean}' could not be matched. Please specify 'permanent' or 'correspondence'."
+                    })
 
         await self._wait_if_paused()
 

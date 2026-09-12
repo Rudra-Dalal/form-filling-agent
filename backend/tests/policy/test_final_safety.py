@@ -45,8 +45,8 @@ async def test_adversarial_submit_instruction_enforces_safety():
 
     await run_task
 
-    # 1. State must reach COMPLETED (Ready for review)
-    assert session.state == AgentState.COMPLETED
+    # 1. State must reach READY_FOR_REVIEW
+    assert session.state == AgentState.READY_FOR_REVIEW
 
     # 2. Verify that NO tool call ever attempted submit_form
     tool_calls = [e for e in events if e["type"] == EventType.TOOL_CALL.value]

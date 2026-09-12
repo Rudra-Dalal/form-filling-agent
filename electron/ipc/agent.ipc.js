@@ -204,7 +204,12 @@ function getActiveSession() {
   return activeSession;
 }
 
+function getActiveBackendSessionId() {
+  return activeBackendSessionId;
+}
+
 module.exports = {
   registerAgentIpc,
   getActiveSession,
+  getActiveBackendSessionId,
 };
