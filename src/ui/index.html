@@ -1,104 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Form Filling Agent (EIGI)</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="UTF-8" />
+<title>FormFlow</title>
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="header-row">
-        <h1>Document &rarr; Form AI Agent</h1>
-        <span id="status-badge" class="status-badge">IDLE</span>
-      </div>
-      <p id="status-message" class="status-message">Ready to start.</p>
-      <p class="subtitle">Phase 1: Reads document, maps fields, fills & verifies form. Never submits.</p>
-    </header>
-
-    <!-- Document Setup & Task Configuration -->
-    <section class="setup">
-      <h2>1. Task Configuration</h2>
-
-      <div class="field">
-        <label>Student Document (PDF / DOCX / XLSX / XLS)</label>
-        <button id="pick-doc-btn" class="btn-secondary">Choose Document...</button>
-        <span id="doc-status">No document selected</span>
-      </div>
-
-      <div class="field">
-        <label>Target Form URL</label>
-        <input id="target-url" type="text" placeholder="https://school-site.example/register" />
-      </div>
-
-      <div class="field">
-        <label>Agent Instruction</label>
-        <input id="instruction" type="text"
-               value="Read this document and fill the student registration form." />
-      </div>
-
-      <div class="field">
-        <label class="checkbox-inline">
-          <input type="checkbox" id="dry-run-check" />
-          <span>Deterministic Dry Run (exercises full browser pipeline without requiring LLM tokens)</span>
-        </label>
-      </div>
-
-      <button id="start-btn" disabled>Start Form-Filling Agent</button>
-    </section>
-
-    <!-- Extracted Document Fields Preview -->
-    <section class="extracted" id="extracted-section" hidden>
-      <h2>Extracted Document Information</h2>
-      <ul id="extracted-list"></ul>
-      <div id="extracted-warnings"></div>
-    </section>
-
-    <!-- Execution Controls (Pause / Resume / Takeover) -->
-    <section class="controls" id="controls-section" hidden>
-      <h2>Execution Controls</h2>
-      <button id="pause-btn" class="btn-secondary">Pause</button>
-      <button id="resume-btn" class="btn-secondary" disabled>Resume</button>
-      <button id="take-over-btn" class="btn-secondary">Take Over Browser</button>
-      <button id="give-back-btn" class="btn-secondary" disabled>Give Control Back</button>
-    </section>
-
-    <!-- Ask-User Clarification Dialog -->
-    <section class="ask-user" id="ask-user-section" hidden>
-      <h2>Clarification Required</h2>
-      <p id="ask-user-question"></p>
-      <div class="field">
-        <input id="ask-user-answer" type="text" placeholder="Type your answer here..." />
-      </div>
-      <button id="ask-user-submit">Send Answer</button>
-    </section>
-
-    <!-- Form Review Section (Shown upon completion) -->
-    <section class="review" id="review-section" hidden>
-      <h2>Form Ready for Review</h2>
-      <div class="review-box">
-        <p id="review-summary" class="review-summary"></p>
-        <div class="review-notice">
-          <strong>Review Required:</strong> The agent has filled and verified all fields above. In accordance with strict Phase 1 safety constraints, autonomous submission is prohibited. Please verify the form in the visible browser and click Submit yourself.
+  <div class="app-shell">
+    <header class="window-header">
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <div>
+          <h1>FormFlow</h1>
+          <p class="subtitle">Reads your documents. Fills the form. Never submits without you.</p>
         </div>
       </div>
-    </section>
+      <div style="display:flex; align-items:center;">
+        <span class="engine-status">Local Engine v2.4 &nbsp;|&nbsp; Ready</span>
+        <button class="settings-btn" title="Settings">⚙</button>
+      </div>
+    </header>
 
-    <!-- Real-Time Activity Log -->
-    <section class="log">
-      <h2>Agent Activity Log</h2>
-      <div id="log-output"></div>
-    </section>
+    <section class="card" id="document-upload-card"></section>
+    <section class="card" id="task-input-card"></section>
+
+    <section class="card" id="agent-status-card"></section>
+    <section class="card" id="controls-card"></section>
+
+    <section class="card" id="activity-log-card"></section>
   </div>
 
-  <!-- State and Component Scripts -->
-  <script src="state/task-state.js"></script>
-  <script src="components/document-upload.js"></script>
-  <script src="components/task-input.js"></script>
-  <script src="components/agent-status.js"></script>
-  <script src="components/activity-log.js"></script>
-  <script src="components/controls.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

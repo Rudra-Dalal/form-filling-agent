@@ -1,122 +1,112 @@
-/**
- * UI bootstrap coordinator. Connects state, components, and the Electron IPC bridge.
- */
+import { taskState } from './state/task-state.js';
+import { initDocumentUpload } from './components/document-upload.js';
+import { initTaskInput } from './components/task-input.js';
+import { initAgentStatus } from './components/agent-status.js';
+import { initControls } from './components/controls.js';
+import { initActivityLog } from './components/activity-log.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-  const api = window.agentAPI || window.eigiAgent;
-  if (!api) {
-    console.error('Agent API not available on window. Ensure preload script is loaded.');
-    return;
+function pushLog(entry) {
+  const state = taskState.getState();
+  taskState.setState({
+    logEntries: [...state.logEntries, { ...entry, timestamp: Date.now() }],
+  });
+}
+
+// Maps the agent's raw event names (see src/shared/events.js on the main
+// process side) to the log-entry "type" this UI knows how to style.
+function mapEventToLogEntry(evt) {
+  switch (evt.type) {
+    case 'agent-thought':
+      return { type: 'agent-thought', message: evt.text };
+    case 'tool-call':
+      return { type: 'tool-call', message: `${evt.name}(${JSON.stringify(evt.input)})` };
+    case 'verify-result':
+      return evt.matches
+        ? { type: 'verify-ok', message: `Verified field ${evt.elementIndex}: "${evt.actual}"` }
+        : {
+            type: 'verify-mismatch',
+            message: `Field ${evt.elementIndex} mismatch — expected "${evt.expected}", got "${evt.actual}"`,
+          };
+    case 'status':
+      return { type: 'status', message: evt.message };
+    case 'tool-error':
+    case 'error':
+      return { type: 'error', message: evt.message || `${evt.name} failed` };
+    default:
+      return null;
   }
+}
 
-  const state = window.taskState;
+function initApp() {
+  initDocumentUpload(document.getElementById('document-upload-card'));
 
-  // Initialize Activity Log
-  const { appendLog } = window.initActivityLog();
+  initTaskInput(document.getElementById('task-input-card'), {
+    onStart: async ({ targetUrl, instruction }) => {
+      const state = taskState.getState();
+      taskState.setState({
+        agentStatus: 'running',
+        startedAt: Date.now(),
+        logEntries: [],
+        completionSummary: null,
+      });
 
-  // Initialize UI Components
-  window.initAgentStatus({ state });
-  window.initDocumentUpload({ state, api, onLog: (msg) => appendLog(msg, 'info') });
-  window.initTaskInput({ state, api, onLog: (msg) => appendLog(msg, 'info') });
-  window.initControls({ state, api, onLog: (msg) => appendLog(msg, 'info') });
+      const res = await window.agentAPI.startAgent({
+        documentData: state.extraction,
+        targetUrl,
+        instruction,
+      });
 
-  // Stream Agent events from Electron IPC bridge
-  api.onAgentEvent((evt) => {
-    switch (evt.type) {
-      case 'status':
-        state.setState({ statusMessage: evt.message });
-        appendLog(evt.message, 'info');
-        break;
-
-      case 'agent-thought':
-        appendLog(`🤔 ${evt.text}`, 'thought');
-        break;
-
-      case 'tool-call':
-        appendLog(`→ ${evt.name}(${JSON.stringify(evt.input || {})})`, 'tool');
-        break;
-
-      case 'tool-error':
-        appendLog(`✖ ${evt.name} failed: ${evt.message}`, 'error');
-        break;
-
-      case 'form-snapshot':
-        appendLog(`Read form: ${evt.snapshot ? evt.snapshot.length : 0} interactive elements found.`, 'info');
-        break;
-
-      case 'verify-result':
-        if (evt.matches) {
-          appendLog(`✔ Field ${evt.elementIndex} verified: "${evt.actual}"`, 'verify-success');
-        } else {
-          appendLog(
-            `⚠ Field ${evt.elementIndex} mismatch — expected "${evt.expected}", got "${evt.actual}"`,
-            'verify-mismatch'
-          );
-        }
-        break;
-
-      case 'ask-user':
-        state.setState({
-          pendingPromptId: evt.promptId,
-          pendingQuestion: evt.question,
-          pendingContext: evt.context,
-          agentStatus: 'waiting_for_user',
-          statusMessage: 'Waiting for your answer...',
-        });
-        appendLog(`❓ Agent requires clarification: ${evt.question}`, 'prompt');
-        break;
-
-      case 'paused':
-        state.setState({
-          isPaused: true,
-          agentStatus: 'paused',
-          statusMessage: 'Agent paused.',
-        });
-        appendLog('⏸ Agent paused.', 'info');
-        break;
-
-      case 'resumed':
-        state.setState({
-          isPaused: false,
-          agentStatus: 'running',
-          statusMessage: 'Agent running...',
-        });
-        appendLog('▶ Agent resumed.', 'info');
-        break;
-
-      case 'handed-over':
-        state.setState({
-          isTakeover: true,
-          agentStatus: 'human_takeover',
-          statusMessage: 'Human takeover active.',
-        });
-        appendLog(`🖐 ${evt.message}`, 'info');
-        break;
-
-      case 'complete':
-        state.setState({
-          agentStatus: 'completed',
-          statusMessage: 'Form completed and verified. Ready for human review.',
-        });
-        const reviewSec = document.getElementById('review-section');
-        const reviewSum = document.getElementById('review-summary');
-        if (reviewSec) reviewSec.hidden = false;
-        if (reviewSum) reviewSum.textContent = evt.summary || 'All fields filled and verified.';
-        appendLog(`✅ Done: ${evt.summary}`, 'complete');
-        break;
-
-      case 'error':
-        state.setState({
-          agentStatus: 'error',
-          statusMessage: evt.message,
-        });
-        appendLog(`✖ Error: ${evt.message}`, 'error');
-        break;
-
-      default:
-        appendLog(JSON.stringify(evt), 'info');
-    }
+      if (!res.ok) {
+        taskState.setState({ agentStatus: 'error' });
+        pushLog({ type: 'error', message: res.error || 'Could not start agent.' });
+      }
+    },
   });
 
-  appendLog('System initialized. Ready for task configuration.', 'info');
-});
+  initAgentStatus(document.getElementById('agent-status-card'));
+  initControls(document.getElementById('controls-card'));
+  initActivityLog(document.getElementById('activity-log-card'));
+
+  window.agentAPI.onAgentEvent((evt) => {
+    switch (evt.type) {
+      case 'paused':
+        taskState.setState({ agentStatus: 'paused' });
+        break;
+      case 'resumed':
+        taskState.setState({ agentStatus: 'running' });
+        break;
+      case 'handed-over':
+        taskState.setState({ isTakenOver: true });
+        pushLog({ type: 'status', message: evt.message });
+        break;
+      case 'resumed-from-user':
+        taskState.setState({ isTakenOver: false });
+        break;
+      case 'ask-user':
+        taskState.setState({
+          agentStatus: 'waiting-for-input',
+          pendingPrompt: { promptId: evt.promptId, question: evt.question, context: evt.context },
+        });
+        break;
+      case 'complete':
+        taskState.setState({
+          agentStatus: 'complete',
+          // evt.summary is a free-text string from the agent; a richer
+          // structured {filled, skipped} shape can replace this once the
+          // agent layer emits one - falling back to a single bucket here
+          // keeps the UI functional either way.
+          completionSummary: evt.filled
+            ? { filled: evt.filled, skipped: evt.skipped || [] }
+            : { filled: [evt.summary], skipped: [] },
+        });
+        break;
+      default:
+        break;
+    }
+
+    const logEntry = mapEventToLogEntry(evt);
+    if (logEntry) pushLog(logEntry);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initApp);

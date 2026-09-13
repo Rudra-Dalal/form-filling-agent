@@ -1,71 +1,50 @@
-/**
- * Target form URL and user instruction input component.
- */
+import { taskState } from '../state/task-state.js';
 
-function initTaskInput({ state, api, onLog }) {
-  const targetUrlInput = document.getElementById('target-url');
-  const instructionInput = document.getElementById('instruction');
-  const startBtn = document.getElementById('start-btn');
+export function initTaskInput(container, { onStart }) {
+  container.innerHTML = `
+    <div class="step-label">Step 2</div>
+    <h2>Target Form</h2>
 
-  function updateStartButtonState() {
-    startBtn.disabled = !state.canStart();
+    <div class="field">
+      <label for="target-url-input">Target Form URL</label>
+      <input id="target-url-input" type="text" placeholder="https://school-portal.example/register" />
+    </div>
+
+    <div class="field">
+      <label for="instruction-input">Instruction</label>
+      <textarea id="instruction-input" placeholder="Read this document and fill the student registration form."></textarea>
+    </div>
+
+    <button id="start-agent-btn" class="btn-primary" disabled>Start Agent</button>
+    <div class="helper-text" id="start-helper">Upload a document and enter a target URL to begin.</div>
+    <div><span class="protection-notice">🛡 Guaranteed zero automated submits without operator clearance</span></div>
+  `;
+
+  const urlInput = container.querySelector('#target-url-input');
+  const instructionInput = container.querySelector('#instruction-input');
+  const startBtn = container.querySelector('#start-agent-btn');
+  const startHelper = container.querySelector('#start-helper');
+
+  urlInput.addEventListener('input', () => taskState.setState({ targetUrl: urlInput.value }));
+  instructionInput.addEventListener('input', () =>
+    taskState.setState({ instruction: instructionInput.value })
+  );
+
+  startBtn.addEventListener('click', () => {
+    const state = taskState.getState();
+    onStart({ targetUrl: state.targetUrl.trim(), instruction: state.instruction.trim() });
+  });
+
+  function render(state) {
+    const ready =
+      Boolean(state.documentFile) && state.targetUrl.trim().length > 0 && state.instruction.trim().length > 0;
+    const idle = state.agentStatus === 'idle';
+
+    startBtn.disabled = !ready || !idle;
+    startBtn.textContent = idle ? 'Start Agent' : 'Agent Active';
+    startHelper.classList.toggle('hidden', ready);
   }
 
-  targetUrlInput.addEventListener('input', (e) => {
-    state.setState({ targetUrl: e.target.value.trim() });
-  });
-
-  instructionInput.addEventListener('input', (e) => {
-    state.setState({ instruction: e.target.value.trim() });
-  });
-
-  state.subscribe(() => {
-    updateStartButtonState();
-  });
-
-  startBtn.addEventListener('click', async () => {
-    const currentState = state.getState();
-
-    if (!currentState.documentData || !currentState.targetUrl || !currentState.instruction) {
-      onLog('Please select a document, enter a target URL, and an instruction.');
-      return;
-    }
-
-    startBtn.disabled = true;
-    state.setState({
-      agentStatus: 'running',
-      statusMessage: 'Starting agent...',
-    });
-
-    onLog(`Initiating form-filling task for: ${currentState.targetUrl}`);
-
-    const dryRunCheck = document.getElementById('dry-run-check');
-    const isDryRun = Boolean(dryRunCheck && dryRunCheck.checked);
-
-    const res = await api.startAgent({
-      documentData: currentState.documentData,
-      targetUrl: currentState.targetUrl,
-      instruction: currentState.instruction,
-      dryRun: isDryRun,
-    });
-
-    if (!res.ok) {
-      onLog(`Could not start: ${res.error}`);
-      state.setState({
-        agentStatus: 'error',
-        statusMessage: res.error,
-      });
-      startBtn.disabled = false;
-    } else {
-      onLog('Agent started. Visible browser window should open shortly.');
-    }
-  });
-}
-
-if (typeof window !== 'undefined') {
-  window.initTaskInput = initTaskInput;
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { initTaskInput };
+  taskState.subscribe(render);
+  render(taskState.getState());
 }

@@ -1,99 +1,104 @@
-/**
- * Controls component managing pause/resume, takeover/give-back, and user prompt answering.
- */
+import { taskState } from '../state/task-state.js';
 
-function initControls({ state, api, onLog }) {
-  const controlsSection = document.getElementById('controls-section');
-  const pauseBtn = document.getElementById('pause-btn');
-  const resumeBtn = document.getElementById('resume-btn');
-  const takeOverBtn = document.getElementById('take-over-btn');
-  const giveBackBtn = document.getElementById('give-back-btn');
+export function initControls(container) {
+  container.innerHTML = `
+    <div class="control-bar">
+      <button id="pause-resume-btn" class="btn-secondary" disabled>Pause Agent</button>
+      <button id="take-over-btn" class="btn-secondary" disabled>Take Over Browser</button>
+      <span class="caption" id="control-caption"></span>
+    </div>
+    <div id="ask-user-area"></div>
+  `;
 
-  const askUserSection = document.getElementById('ask-user-section');
-  const askUserQuestion = document.getElementById('ask-user-question');
-  const askUserAnswer = document.getElementById('ask-user-answer');
-  const askUserSubmit = document.getElementById('ask-user-submit');
+  const pauseResumeBtn = container.querySelector('#pause-resume-btn');
+  const takeOverBtn = container.querySelector('#take-over-btn');
+  const caption = container.querySelector('#control-caption');
+  const askUserArea = container.querySelector('#ask-user-area');
 
-  pauseBtn.addEventListener('click', async () => {
-    await api.pauseAgent();
-    state.setState({ isPaused: true, agentStatus: 'paused', statusMessage: 'Agent paused by user.' });
-    onLog('Agent paused.');
-  });
-
-  resumeBtn.addEventListener('click', async () => {
-    await api.resumeAgent();
-    state.setState({ isPaused: false, agentStatus: 'running', statusMessage: 'Agent resumed.' });
-    onLog('Agent resumed.');
+  pauseResumeBtn.addEventListener('click', async () => {
+    const { agentStatus } = taskState.getState();
+    if (agentStatus === 'paused') {
+      await window.agentAPI.resumeAgent();
+    } else {
+      await window.agentAPI.pauseAgent();
+    }
   });
 
   takeOverBtn.addEventListener('click', async () => {
-    await api.takeOver();
-    state.setState({
-      isTakeover: true,
-      agentStatus: 'human_takeover',
-      statusMessage: 'You have control of the browser.',
-    });
-    onLog('Human takeover enabled. You may interact directly with the browser.');
-  });
-
-  giveBackBtn.addEventListener('click', async () => {
-    await api.giveBack();
-    state.setState({
-      isTakeover: false,
-      agentStatus: 'running',
-      statusMessage: 'Agent resumed control.',
-    });
-    onLog('Control handed back to the agent.');
-  });
-
-  askUserSubmit.addEventListener('click', async () => {
-    const answer = askUserAnswer.value.trim();
-    const { pendingPromptId } = state.getState();
-    if (!pendingPromptId || !answer) return;
-
-    await api.answerPrompt(pendingPromptId, answer);
-    onLog(`Sent answer to agent: "${answer}"`);
-
-    state.setState({
-      pendingPromptId: null,
-      pendingQuestion: '',
-      agentStatus: 'running',
-      statusMessage: 'Processing answer...',
-    });
-
-    askUserSection.hidden = true;
-    askUserAnswer.value = '';
-  });
-
-  // State subscription to update button states
-  state.subscribe((current) => {
-    const isRunning = ['running', 'paused', 'waiting_for_user', 'human_takeover'].includes(
-      current.agentStatus
-    );
-    controlsSection.hidden = !isRunning;
-
-    pauseBtn.disabled = current.isPaused || current.isTakeover;
-    resumeBtn.disabled = !current.isPaused || current.isTakeover;
-
-    takeOverBtn.disabled = current.isTakeover;
-    giveBackBtn.disabled = !current.isTakeover;
-
-    if (current.pendingPromptId) {
-      askUserSection.hidden = false;
-      askUserQuestion.textContent = current.pendingContext
-        ? `${current.pendingQuestion} (${current.pendingContext})`
-        : current.pendingQuestion;
-      askUserAnswer.focus();
+    const { isTakenOver } = taskState.getState();
+    if (isTakenOver) {
+      await window.agentAPI.giveBack();
     } else {
-      askUserSection.hidden = true;
+      await window.agentAPI.takeOver();
     }
   });
-}
 
-if (typeof window !== 'undefined') {
-  window.initControls = initControls;
-}
+  function renderAskUser(state) {
+    const prompt = state.pendingPrompt;
+    if (!prompt) {
+      askUserArea.innerHTML = '';
+      return;
+    }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { initControls };
+    // Offer quick-select chips when the context looks like an explicit
+    // "option A vs option B" choice (best-effort heuristic on the context
+    // string); otherwise just show the free-text input.
+    const chipMatches = [...(prompt.context || '').matchAll(/\d\.\s*([^:|]+):/g)].map((m) => m[1].trim());
+
+    askUserArea.innerHTML = `
+      <div class="ask-user-card">
+        <div class="heading">❓ Human Clarification Needed (Blocking Action)</div>
+        <div class="question">${prompt.question}</div>
+        ${prompt.context ? `<div class="context-pill">${prompt.context}</div>` : ''}
+        ${
+          chipMatches.length > 0
+            ? `<div class="choice-chips">
+                 ${chipMatches
+                   .map((label) => `<button class="choice-chip" data-choice="${label}">${label}</button>`)
+                   .join('')}
+               </div>`
+            : ''
+        }
+        <div class="answer-row">
+          <input type="text" id="ask-user-answer-input" placeholder="Type your answer..." />
+          <button class="btn-primary" id="ask-user-send-btn">Send Answer</button>
+        </div>
+      </div>
+    `;
+
+    const answerInput = askUserArea.querySelector('#ask-user-answer-input');
+
+    askUserArea.querySelectorAll('.choice-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        answerInput.value = chip.dataset.choice;
+      });
+    });
+
+    askUserArea.querySelector('#ask-user-send-btn').addEventListener('click', async () => {
+      const answer = answerInput.value.trim();
+      if (!answer) return;
+      await window.agentAPI.answerPrompt(prompt.promptId, answer);
+      taskState.setState({ pendingPrompt: null });
+    });
+  }
+
+  function render(state) {
+    const isActive = ['running', 'paused', 'waiting-for-input'].includes(state.agentStatus);
+    pauseResumeBtn.disabled = !isActive || state.isTakenOver;
+    pauseResumeBtn.textContent = state.agentStatus === 'paused' ? 'Resume Agent' : 'Pause Agent';
+
+    takeOverBtn.disabled = !isActive;
+    takeOverBtn.textContent = state.isTakenOver ? 'Give Control Back' : 'Take Over Browser';
+
+    caption.textContent = state.isTakenOver
+      ? 'You have control. Make your changes, then give control back.'
+      : isActive
+      ? "You will control the browser directly until you give control back."
+      : '';
+
+    renderAskUser(state);
+  }
+
+  taskState.subscribe(render);
+  render(taskState.getState());
 }

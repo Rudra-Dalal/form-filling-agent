@@ -1,62 +1,48 @@
-/**
- * Reactive UI state store for managing task and execution status.
- */
+// A deliberately tiny pub/sub store - no framework or bundler needed for
+// this UI's complexity. Loaded as a native ES module (script type="module"),
+// which Chromium's renderer supports directly even with nodeIntegration off.
+//
+// Components call subscribe() to re-render on any state change, and the app
+// coordinator calls setState() to merge partial updates in from IPC events.
 
-class TaskState {
-  constructor() {
-    this.state = {
-      documentData: null,
-      documentPath: '',
-      targetUrl: '',
-      instruction: 'Read this document and fill the student registration form.',
-      agentStatus: 'idle',
-      statusMessage: 'Ready to start.',
-      pendingPromptId: null,
-      pendingQuestion: '',
-      pendingContext: '',
-      isPaused: false,
-      isTakeover: false,
-    };
+export function createStore(initialState) {
+  let state = { ...initialState };
+  const listeners = new Set();
 
-    this.listeners = new Set();
-  }
-
-  getState() {
-    return { ...this.state };
-  }
-
-  setState(updates) {
-    this.state = { ...this.state, ...updates };
-    this.notify();
-  }
-
-  subscribe(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  notify() {
-    for (const listener of this.listeners) {
-      listener(this.state);
-    }
-  }
-
-  canStart() {
-    return (
-      Boolean(this.state.documentData) &&
-      Boolean(this.state.targetUrl.trim()) &&
-      Boolean(this.state.instruction.trim()) &&
-      this.state.agentStatus !== 'running'
-    );
-  }
+  return {
+    getState: () => state,
+    setState(partial) {
+      state = { ...state, ...partial };
+      listeners.forEach((listener) => listener(state));
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
 }
 
-// In the browser renderer, expose a singleton instance
-const taskState = new TaskState();
-if (typeof window !== 'undefined') {
-  window.taskState = taskState;
-}
+export const taskState = createStore({
+  // document
+  documentFile: null, // { name, size }
+  extraction: null, // { fields: [...], warnings: [...] }
+  extractionInProgress: false,
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { TaskState, taskState };
-}
+  // task config
+  targetUrl: '',
+  instruction: '',
+
+  // agent lifecycle
+  agentStatus: 'idle', // idle | running | paused | waiting-for-input | complete | error
+  isTakenOver: false,
+  startedAt: null,
+
+  // live log
+  logEntries: [], // { type, message, timestamp }
+
+  // ask-user
+  pendingPrompt: null, // { promptId, question, context }
+
+  // completion
+  completionSummary: null, // { filled: [...], skipped: [{field, reason}] }
+});
