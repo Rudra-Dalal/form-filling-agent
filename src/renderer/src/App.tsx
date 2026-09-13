@@ -37,6 +37,29 @@ export const App: React.FC = () => {
   const [reviewSummary, setReviewSummary] = useState<string>('');
   const [logs, setLogs] = useState<ActivityLogItem[]>([]);
   const [hasVerifiedFields, setHasVerifiedFields] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('eigi-theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('eigi-theme', theme);
+    } catch (_) {}
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   const appendLog = useCallback(
     (message: string, category: ActivityLogItem['category'] = 'info') => {
@@ -325,7 +348,12 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Header status={status} statusMessage={statusMessage} />
+      <Header
+        status={status}
+        statusMessage={statusMessage}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
 
       <ProgressStepper
         hasDocument={Boolean(documentData)}

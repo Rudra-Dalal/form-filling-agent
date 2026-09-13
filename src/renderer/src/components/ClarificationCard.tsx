@@ -51,8 +51,8 @@ export const ClarificationCard: React.FC<ClarificationCardProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div
               style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #fde68a',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-light)',
                 borderRadius: '8px',
                 padding: '12px',
                 display: 'flex',
@@ -62,10 +62,10 @@ export const ClarificationCard: React.FC<ClarificationCardProps> = ({
               }}
             >
               <div>
-                <strong style={{ fontSize: '12px', color: '#78350f', textTransform: 'uppercase' }}>
+                <strong style={{ fontSize: '12px', color: 'var(--status-warning)', textTransform: 'uppercase' }}>
                   Permanent
                 </strong>
-                <p style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '4px' }}>
                   14 Lotus Lane, Nagpur, Maharashtra, 440001
                 </p>
               </div>
@@ -87,8 +87,8 @@ export const ClarificationCard: React.FC<ClarificationCardProps> = ({
 
             <div
               style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #fde68a',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-light)',
                 borderRadius: '8px',
                 padding: '12px',
                 display: 'flex',
@@ -98,10 +98,10 @@ export const ClarificationCard: React.FC<ClarificationCardProps> = ({
               }}
             >
               <div>
-                <strong style={{ fontSize: '12px', color: '#78350f', textTransform: 'uppercase' }}>
+                <strong style={{ fontSize: '12px', color: 'var(--status-warning)', textTransform: 'uppercase' }}>
                   Correspondence
                 </strong>
-                <p style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '4px' }}>
                   22 Palm Residency, Nagpur, Maharashtra, 440010
                 </p>
               </div>

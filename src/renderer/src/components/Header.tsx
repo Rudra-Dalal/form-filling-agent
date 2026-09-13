@@ -4,9 +4,16 @@ import { AgentStatus } from '../types';
 interface HeaderProps {
   status: AgentStatus;
   statusMessage: string;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ status, statusMessage }) => {
+export const Header: React.FC<HeaderProps> = ({
+  status,
+  statusMessage,
+  theme,
+  onToggleTheme,
+}) => {
   const getStatusDetails = () => {
     switch (status) {
       case 'running':
@@ -32,13 +39,18 @@ export const Header: React.FC<HeaderProps> = ({ status, statusMessage }) => {
   return (
     <div>
       <div className="window-bar">
-        <div className="window-dots">
-          <span className="window-dot dot-red" />
-          <span className="window-dot dot-yellow" />
-          <span className="window-dot dot-green" />
-        </div>
         <span className="window-title">EIGI Form Agent &mdash; Student Registration Assistant</span>
-        <div style={{ width: '40px' }} />
+        <button
+          type="button"
+          id="theme-toggle-btn"
+          className="theme-toggle-btn"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          <span className="theme-toggle-icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
       </div>
 
       <header className="app-header">
