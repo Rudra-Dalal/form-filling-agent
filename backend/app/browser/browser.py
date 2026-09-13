@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, List
 from playwright.async_api import async_playwright, Playwright, Browser, BrowserContext, Page
 from ..config import HEADLESS
@@ -21,7 +22,7 @@ class BrowserSession:
         if self.browser is None:
             launch_args = [
                 "--disable-blink-features=AutomationControlled",
-                "--window-size=1100,700",
+                "--window-size=1050,680",
                 "--window-position=50,20",
             ]
             self.browser = await self._pw.chromium.launch(
@@ -30,17 +31,53 @@ class BrowserSession:
             )
 
         if self.context is None:
-            if self.headless:
-                self.context = await self.browser.new_context(
-                    viewport={"width": 1100, "height": 700}
-                )
-            else:
-                self.context = await self.browser.new_context(
-                    no_viewport=True
-                )
+            self.context = await self.browser.new_context(
+                viewport={"width": 1050, "height": 580}
+            )
 
         if self.page is None:
             self.page = await self.context.new_page()
+
+            async def on_dialog(dialog):
+                msg = dialog.message
+                await dialog.accept()
+                try:
+                    await self.page.evaluate("""
+                        (text) => {
+                            const existing = document.getElementById('__agent-alert-toast');
+                            if (existing) existing.remove();
+
+                            const toast = document.createElement('div');
+                            toast.id = '__agent-alert-toast';
+                            toast.style.position = 'fixed';
+                            toast.style.top = '24px';
+                            toast.style.left = '50%';
+                            toast.style.transform = 'translateX(-50%)';
+                            toast.style.backgroundColor = '#065f46';
+                            toast.style.color = '#ffffff';
+                            toast.style.padding = '14px 28px';
+                            toast.style.borderRadius = '8px';
+                            toast.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+                            toast.style.zIndex = '9999999';
+                            toast.style.fontFamily = 'Arial, sans-serif';
+                            toast.style.fontSize = '15px';
+                            toast.style.fontWeight = '600';
+                            toast.style.display = 'flex';
+                            toast.style.alignItems = 'center';
+                            toast.style.gap = '10px';
+                            toast.style.border = '2px solid #34d399';
+                            toast.innerHTML = '<span>🔔 Form Submission Alert: ' + text + '</span>';
+                            document.body.appendChild(toast);
+
+                            setTimeout(() => {
+                                if (toast && toast.parentNode) toast.remove();
+                            }, 6000);
+                        }
+                    """, msg)
+                except Exception:
+                    pass
+
+            self.page.on("dialog", lambda d: asyncio.create_task(on_dialog(d)))
 
         self.current_url = target_url
         await self.page.goto(target_url, wait_until="domcontentloaded")

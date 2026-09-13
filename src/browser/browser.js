@@ -22,15 +22,53 @@ class BrowserSession {
         headless: HEADLESS,
         args: [
           '--disable-blink-features=AutomationControlled',
-          '--window-size=1100,700',
+          '--window-size=1050,680',
           '--window-position=50,20',
         ],
       });
-      this.context = await this.browser.newContext(
-        HEADLESS ? { viewport: { width: 1100, height: 700 } } : { noViewport: true }
-      );
+      this.context = await this.browser.newContext({
+        viewport: { width: 1050, height: 580 },
+      });
       this.page = await this.context.newPage();
       this.page.setDefaultNavigationTimeout(DEFAULT_NAV_TIMEOUT_MS);
+
+      this.page.on('dialog', async (dialog) => {
+        const msg = dialog.message();
+        await dialog.accept();
+        try {
+          await this.page.evaluate((text) => {
+            const existing = document.getElementById('__agent-alert-toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = '__agent-alert-toast';
+            toast.style.position = 'fixed';
+            toast.style.top = '24px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.backgroundColor = '#065f46';
+            toast.style.color = '#ffffff';
+            toast.style.padding = '14px 28px';
+            toast.style.borderRadius = '8px';
+            toast.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+            toast.style.zIndex = '9999999';
+            toast.style.fontFamily = 'Arial, sans-serif';
+            toast.style.fontSize = '15px';
+            toast.style.fontWeight = '600';
+            toast.style.display = 'flex';
+            toast.style.alignItems = 'center';
+            toast.style.gap = '10px';
+            toast.style.border = '2px solid #34d399';
+            toast.innerHTML = '<span>🔔 Form Submission Alert: ' + text + '</span>';
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+              if (toast && toast.parentNode) toast.remove();
+            }, 6000);
+          }, msg);
+        } catch (_) {}
+      });
+
       if (targetUrl) {
         await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       }
