@@ -110,6 +110,7 @@ export interface AgentAPI {
   answerPrompt: (promptId: string, answer: string) => Promise<{ ok: boolean; error?: string }>;
   getBrowserSnapshot: () => Promise<{ ok: boolean; snapshot?: any; error?: string }>;
   getBrowserDomValues: () => Promise<{ ok: boolean; values?: Record<string, any>; error?: string }>;
+  getDemoPortalUrl?: () => Promise<string>;
   onAgentEvent: (callback: (evt: AgentEvent) => void) => () => void;
 }
 

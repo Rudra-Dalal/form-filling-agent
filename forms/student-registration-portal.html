@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Greenwood Academy — Student Admission Portal</title>
+<style>
+  :root {
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --primary-light: #e0f2fe;
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 10px;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-page);
+    color: var(--text-main);
+    line-height: 1.5;
+    padding: 30px 16px 60px;
+  }
+
+  .portal-container {
+    max-width: 680px;
+    margin: 0 auto;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .portal-header {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: white;
+    padding: 24px 28px;
+  }
+
+  .portal-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+
+  .portal-title {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .portal-subtitle {
+    font-size: 13px;
+    color: #e0f2fe;
+    margin-top: 4px;
+  }
+
+  form {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    background: #fafbfc;
+  }
+
+  legend {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--primary);
+    padding: 0 8px;
+  }
+
+  .field-row {
+    margin-top: 12px;
+  }
+  .field-row:first-of-type {
+    margin-top: 4px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
+  }
+
+  .required-star {
+    color: #ef4444;
+  }
+
+  input[type="text"],
+  input[type="date"],
+  select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: var(--text-main);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input[type="text"]:focus,
+  input[type="date"]:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .checkbox-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+
+  .checkbox-card input[type="checkbox"] {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  .checkbox-card label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .submit-container {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn-submit {
+    background-color: #16a34a;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .btn-submit:hover {
+    background-color: #15803d;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(22, 163, 74, 0.3);
+  }
+
+  .submit-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .alert-box {
+    background-color: #fef2f2;
+    border: 1px solid #f87171;
+    color: #991b1b;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* Success Receipt View */
+  .receipt-view {
+    display: none;
+    padding: 32px 28px;
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .receipt-badge-header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .success-icon-circle {
+    width: 60px;
+    height: 60px;
+    background-color: var(--success-light);
+    color: var(--success);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin-bottom: 12px;
+  }
+
+  .receipt-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #15803d;
+  }
+
+  .receipt-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .receipt-card {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .receipt-ref-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed #cbd5e1;
+    margin-bottom: 14px;
+  }
+
+  .ref-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .ref-value {
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .receipt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .receipt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .field-k {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .field-v {
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .receipt-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn-print {
+    flex: 1;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .btn-reset {
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    color: #334155;
+    border-radius: 6px;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .btn-reset:hover { background: #f1f5f9; }
+</style>
+</head>
+<body>
+
+<div class="portal-container">
+  <div class="portal-header">
+    <div class="portal-badge">Academic Year 2026–2027</div>
+    <h1 class="portal-title">Greenwood Academy</h1>
+    <p class="portal-subtitle">Student Admission & Enrollment Registration Portal</p>
+  </div>
+
+  <!-- Form View -->
+  <form id="registration-form" novalidate>
+    <!-- Student Details -->
+    <fieldset>
+      <legend>Student Information</legend>
+
+      <div class="field-row">
+        <label for="full-name">Name of Student <span class="required-star">*</span></label>
+        <input type="text" id="full-name" name="full-name" placeholder="Enter student full name" required />
+      </div>
+
+      <div class="grid-2 field-row">
+        <div>
+          <label for="birth-date">Date of Birth <span class="required-star">*</span></label>
+          <input type="date" id="birth-date" name="birth-date" required />
+        </div>
+        <div>
+          <label for="gender">Gender <span class="required-star">*</span></label>
+          <select id="gender" name="gender" required>
+            <option value="">-- Select --</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label for="grade">Applying for Grade <span class="required-star">*</span></label>
+        <select id="grade" name="grade" required>
+          <option value="">-- Select Grade --</option>
+          <option value="6">Grade 6</option>
+          <option value="7">Grade 7</option>
+          <option value="8">Grade 8</option>
+          <option value="9">Grade 9</option>
+          <option value="10">Grade 10</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <!-- Parent / Guardian Details -->
+    <fieldset>
+      <legend>Parent / Guardian Details</legend>
+
+      <div class="field-row">
+        <label for="father-name">Father's Full Name <span class="required-star">*</span></label>
+        <input type="text" id="father-name" name="father-name" placeholder="Father or primary guardian" required />
+      </div>
+
+      <div class="field-row">
+        <label for="mother-name">Mother's Full Name</label>
+        <input type="text" id="mother-name" name="mother-name" placeholder="Mother's full name" />
+      </div>
+
+      <div class="field-row">
+        <label for="contact">Primary Contact Number <span class="required-star">*</span></label>
+        <input type="text" id="contact" name="contact" placeholder="10-digit mobile number" required />
+      </div>
+    </fieldset>
+
+    <!-- Address -->
+    <fieldset>
+      <legend>Residential Address</legend>
+
+      <div class="field-row">
+        <label for="street">Residential Address <span class="required-star">*</span></label>
+        <input type="text" id="street" name="street" placeholder="House/Flat number, Street name" required />
+      </div>
+
+      <div class="grid-2 field-row">
+        <div>
+          <label for="city">City / Town <span class="required-star">*</span></label>
+          <input type="text" id="city" name="city" placeholder="City" required />
+        </div>
+        <div>
+          <label for="state">State <span class="required-star">*</span></label>
+          <input type="text" id="state" name="state" placeholder="State" required />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label for="pincode">PIN Code <span class="required-star">*</span></label>
+        <input type="text" id="pincode" name="pincode" placeholder="6-digit postal PIN" required />
+      </div>
+    </fieldset>
+
+    <!-- Declaration & Services -->
+    <fieldset>
+      <legend>Declaration & Options</legend>
+
+      <div class="checkbox-card">
+        <input type="checkbox" id="hosteler" name="hosteler" />
+        <label for="hosteler">Apply for on-campus hostel accommodation</label>
+      </div>
+
+      <div class="checkbox-card">
+        <input type="checkbox" id="confirm" name="confirm" required />
+        <label for="confirm">
+          I confirm the above details are accurate and verified from original documents. <span class="required-star">*</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <!-- Real Submit Button -->
+    <div class="submit-container">
+      <div id="alert-box" class="alert-box" style="display: none;">
+        <span>⚠️</span>
+        <span id="alert-text">Please check the confirmation box verifying that the details are accurate.</span>
+      </div>
+
+      <button type="submit" id="submit-btn" class="btn-submit">
+        <span>✓</span>
+        <span>Submit Registration</span>
+      </button>
+      <p class="submit-hint">Submitting permanently records this application in Greenwood Academy's local database.</p>
+    </div>
+  </form>
+
+  <!-- Success Receipt View -->
+  <div id="receipt-view" class="receipt-view">
+    <div class="receipt-badge-header">
+      <div class="success-icon-circle">✓</div>
+      <h2 class="receipt-title">Application Submitted Successfully!</h2>
+      <p class="receipt-subtitle">The student registration has been verified and permanently recorded.</p>
+    </div>
+
+    <div class="receipt-card">
+      <div class="receipt-ref-row">
+        <span class="ref-label">Application Reference</span>
+        <span id="receipt-ref-no" class="ref-value">GRN-2026-00000</span>
+      </div>
+
+      <div class="receipt-grid">
+        <div class="receipt-field">
+          <span class="field-k">Student Full Name</span>
+          <span id="r-name" class="field-v">—</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Grade Applied</span>
+          <span id="r-grade" class="field-v">—</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Date of Birth</span>
+          <span id="r-dob" class="field-v">—</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Gender</span>
+          <span id="r-gender" class="field-v">—</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Father's Name</span>
+          <span id="r-father" class="field-v">—</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Primary Contact</span>
+          <span id="r-contact" class="field-v">—</span>
+        </div>
+        <div class="receipt-field" style="grid-column: span 2;">
+          <span class="field-k">Registered Address</span>
+          <span id="r-address" class="field-v">—</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Hostel Accommodation</span>
+          <span id="r-hostel" class="field-v">No</span>
+        </div>
+        <div class="receipt-field">
+          <span class="field-k">Submission Time</span>
+          <span id="r-time" class="field-v">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="receipt-actions">
+      <button type="button" class="btn-print" onclick="window.print()">Print Acknowledgement</button>
+      <button type="button" class="btn-reset" onclick="resetPortal()">Register Another Student</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('registration-form');
+  const receiptView = document.getElementById('receipt-view');
+  const alertBox = document.getElementById('alert-box');
+  const alertText = document.getElementById('alert-text');
+  const confirmCheck = document.getElementById('confirm');
+
+  confirmCheck.addEventListener('change', () => {
+    if (confirmCheck.checked && alertBox) {
+      alertBox.style.display = 'none';
+    }
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    if (!confirmCheck.checked) {
+      if (alertBox) {
+        alertText.textContent = 'Please check the confirmation box verifying that the details are accurate.';
+        alertBox.style.display = 'flex';
+      }
+      return;
+    }
+
+    if (alertBox) {
+      alertBox.style.display = 'none';
+    }
+
+    const refNo = 'GRN-' + new Date().getFullYear() + '-' + Math.floor(10000 + Math.random() * 90000);
+    const submissionTime = new Date().toLocaleString();
+
+    const studentData = {
+      refNo,
+      referenceNumber: refNo,
+      fullName: document.getElementById('full-name').value.trim(),
+      dob: document.getElementById('birth-date').value,
+      gender: document.getElementById('gender').value,
+      grade: document.getElementById('grade').value,
+      fatherName: document.getElementById('father-name').value.trim(),
+      motherName: document.getElementById('mother-name').value.trim(),
+      contact: document.getElementById('contact').value.trim(),
+      address: [
+        document.getElementById('street').value.trim(),
+        document.getElementById('city').value.trim(),
+        document.getElementById('state').value.trim(),
+        document.getElementById('pincode').value.trim()
+      ].filter(Boolean).join(', '),
+      hosteler: document.getElementById('hosteler').checked,
+      submittedAt: submissionTime
+    };
+
+    // Save to localStorage as a real persistent record
+    try {
+      const existing = JSON.parse(localStorage.getItem('greenwood-applications') || '[]');
+      existing.push(studentData);
+      localStorage.setItem('greenwood-applications', JSON.stringify(existing));
+    } catch (_) {}
+
+    // Populate receipt
+    document.getElementById('receipt-ref-no').textContent = refNo;
+    document.getElementById('r-name').textContent = studentData.fullName;
+    document.getElementById('r-grade').textContent = 'Grade ' + studentData.grade;
+    document.getElementById('r-dob').textContent = studentData.dob;
+    document.getElementById('r-gender').textContent = studentData.gender ? studentData.gender.toUpperCase() : '—';
+    document.getElementById('r-father').textContent = studentData.fatherName;
+    document.getElementById('r-contact').textContent = studentData.contact;
+    document.getElementById('r-address').textContent = studentData.address;
+    document.getElementById('r-hostel').textContent = studentData.hosteler ? 'Yes (Requested)' : 'No';
+    document.getElementById('r-time').textContent = submissionTime;
+
+    // Transition view
+    form.style.display = 'none';
+    receiptView.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  function resetPortal() {
+    form.reset();
+    receiptView.style.display = 'none';
+    form.style.display = 'flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>

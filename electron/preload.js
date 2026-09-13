@@ -35,6 +35,7 @@ const api = {
   // Browser state query
   getBrowserSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSER_SNAPSHOT),
   getBrowserDomValues: () => ipcRenderer.invoke('browser:dom-values'),
+  getDemoPortalUrl: () => ipcRenderer.invoke('portal:get-url'),
 
   // Streamed progress events listener
   onAgentEvent: (callback) => {

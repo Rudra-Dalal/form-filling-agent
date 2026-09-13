@@ -19,6 +19,16 @@ export const TargetFormCard: React.FC<TargetFormCardProps> = ({
   canStart,
   isRunning,
 }) => {
+  const handleUseDemoPortal = async () => {
+    const api = (window as any).agentAPI || (window as any).eigiAgent || (window as any).electronAPI;
+    if (api && typeof api.getDemoPortalUrl === 'function') {
+      try {
+        const url = await api.getDemoPortalUrl();
+        if (url) onTargetUrlChange(url);
+      } catch (_) {}
+    }
+  };
+
   return (
     <div className="card">
       <div className="card-header">
@@ -32,9 +42,20 @@ export const TargetFormCard: React.FC<TargetFormCardProps> = ({
       </div>
 
       <div className="form-group">
-        <label className="form-label" htmlFor="target-url">
-          Target Form URL
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <label className="form-label" htmlFor="target-url" style={{ margin: 0 }}>
+            Target Form URL
+          </label>
+          <button
+            type="button"
+            className="details-toggle"
+            style={{ fontSize: '12px', padding: 0 }}
+            onClick={handleUseDemoPortal}
+            disabled={isRunning}
+          >
+            Use Greenwood Academy Demo Portal
+          </button>
+        </div>
         <input
           id="target-url"
           type="text"

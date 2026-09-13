@@ -60,6 +60,13 @@ function registerBrowserIpc() {
     }
     return { ok: false, error: 'No active backend session.' };
   });
+
+  ipcMain.handle('portal:get-url', () => {
+    const path = require('path');
+    const { pathToFileURL } = require('url');
+    const portalPath = path.resolve(__dirname, '..', '..', 'forms', 'student-registration-portal.html');
+    return pathToFileURL(portalPath).href;
+  });
 }
 
 module.exports = { registerBrowserIpc };

@@ -13,6 +13,7 @@ const testFiles = [
   path.join(__dirname, 'browser', 'actions.test.js'),
   path.join(__dirname, 'integration', 'workflow.test.js'),
   path.join(__dirname, 'integration', 'fixture-dryrun.test.js'),
+  path.join(__dirname, 'integration', 'real-portal.test.js'),
 ];
 
 console.log('Running test suites:\n' + testFiles.map((f) => ` - ${path.relative(__dirname, f)}`).join('\n') + '\n');
