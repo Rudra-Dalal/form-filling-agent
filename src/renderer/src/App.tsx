@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './styles.css';
 import { Header } from './components/Header';
 import { DocumentCard } from './components/DocumentCard';
@@ -21,6 +21,10 @@ const getAPI = (): AgentAPI | undefined => {
 };
 
 export const App: React.FC = () => {
+  const targetFormRef = useRef<HTMLDivElement>(null);
+  const clarificationRef = useRef<HTMLDivElement>(null);
+  const reviewRef = useRef<HTMLDivElement>(null);
+
   const [documentPath, setDocumentPath] = useState<string>('');
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [targetUrl, setTargetUrl] = useState<string>('');
@@ -37,6 +41,7 @@ export const App: React.FC = () => {
   const [reviewSummary, setReviewSummary] = useState<string>('');
   const [logs, setLogs] = useState<ActivityLogItem[]>([]);
   const [hasVerifiedFields, setHasVerifiedFields] = useState<boolean>(false);
+  const [showScrollBottom, setShowScrollBottom] = useState<boolean>(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('eigi-theme');
@@ -60,6 +65,56 @@ export const App: React.FC = () => {
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
+
+  useEffect(() => {
+    const rootEl = document.getElementById('root');
+    if (!rootEl) return;
+
+    const checkScroll = () => {
+      const scrollBottom = rootEl.scrollHeight - rootEl.scrollTop - rootEl.clientHeight;
+      setShowScrollBottom(scrollBottom > 140);
+    };
+
+    rootEl.addEventListener('scroll', checkScroll, { passive: true });
+    checkScroll();
+    const timer = setInterval(checkScroll, 800);
+
+    return () => {
+      rootEl.removeEventListener('scroll', checkScroll);
+      clearInterval(timer);
+    };
+  }, []);
+
+  const scrollToBottom = () => {
+    const rootEl = document.getElementById('root');
+    if (rootEl) {
+      rootEl.scrollTo({ top: rootEl.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    if (documentData) {
+      setTimeout(() => {
+        targetFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 200);
+    }
+  }, [documentData]);
+
+  useEffect(() => {
+    if (status === 'waiting_for_user') {
+      setTimeout(() => {
+        clarificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 150);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status === 'ready_for_review' || status === 'completed') {
+      setTimeout(() => {
+        reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 150);
+    }
+  }, [status]);
 
   const appendLog = useCallback(
     (message: string, category: ActivityLogItem['category'] = 'info') => {
@@ -371,15 +426,17 @@ export const App: React.FC = () => {
         isRunning={status === 'running'}
       />
 
-      <TargetFormCard
-        targetUrl={targetUrl}
-        onTargetUrlChange={setTargetUrl}
-        instruction={instruction}
-        onInstructionChange={setInstruction}
-        onStart={handleStartAgent}
-        canStart={canStart}
-        isRunning={status === 'running'}
-      />
+      <div ref={targetFormRef} style={{ scrollMarginTop: '20px' }}>
+        <TargetFormCard
+          targetUrl={targetUrl}
+          onTargetUrlChange={setTargetUrl}
+          instruction={instruction}
+          onInstructionChange={setInstruction}
+          onStart={handleStartAgent}
+          canStart={canStart}
+          isRunning={status === 'running'}
+        />
+      </div>
 
       <ControlsBar
         status={status}
@@ -392,23 +449,39 @@ export const App: React.FC = () => {
       />
 
       {status === 'waiting_for_user' && (
-        <ClarificationCard
-          question={pendingQuestion}
-          context={pendingContext}
-          onAnswer={(ans) => {
-            if (pendingPromptId) handleSendAnswer(pendingPromptId, ans);
-          }}
-        />
+        <div ref={clarificationRef} style={{ scrollMarginTop: '20px' }}>
+          <ClarificationCard
+            question={pendingQuestion}
+            context={pendingContext}
+            onAnswer={(ans) => {
+              if (pendingPromptId) handleSendAnswer(pendingPromptId, ans);
+            }}
+          />
+        </div>
       )}
 
       {(status === 'ready_for_review' || status === 'completed') && (
-        <ReviewCard
-          summary={reviewSummary}
-          onFocusBrowser={handleFocusBrowser}
-        />
+        <div ref={reviewRef} style={{ scrollMarginTop: '20px' }}>
+          <ReviewCard
+            summary={reviewSummary}
+            onFocusBrowser={handleFocusBrowser}
+          />
+        </div>
       )}
 
       <ActivityFeed items={logs} />
+
+      {showScrollBottom && (
+        <button
+          type="button"
+          className="floating-scroll-btn"
+          onClick={scrollToBottom}
+          title="Scroll down"
+        >
+          <span>&#8595;</span>
+          <span>Scroll to form</span>
+        </button>
+      )}
     </div>
   );
 };

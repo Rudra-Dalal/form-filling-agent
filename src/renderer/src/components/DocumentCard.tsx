@@ -18,6 +18,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   onUpdateField,
   isRunning,
 }) => {
+  const [isExpanded, setIsExpanded] = React.useState<boolean>(true);
   const fileName = documentPath ? documentPath.split(/[\\/]/).pop() || documentPath : '';
   const fileExtension = fileName.includes('.') ? fileName.split('.').pop()?.toUpperCase() : '';
 
@@ -81,11 +82,21 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           {/* Extracted Information */}
           {documentData && (
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                Information found in document (editable):
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Information found in document (editable):
+                </div>
+                <button
+                  type="button"
+                  className="details-toggle"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                >
+                  {isExpanded ? 'Collapse fields' : 'Expand fields'}
+                </button>
               </div>
 
-              <div className="extraction-grid">
+              {isExpanded && (
+                <div className="extraction-grid">
                 {/* Student */}
                 <div className="extraction-category">
                   <div className="category-title">Student</div>
@@ -250,6 +261,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   </div>
                 </div>
               </div>
+            )}
 
               {/* Ambiguity Warning Banner */}
               {hasAmbiguousAddress && (

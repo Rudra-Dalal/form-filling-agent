@@ -104,24 +104,73 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+#root {
+  height: 100vh;
+  max-height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar for Desktop App */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-canvas);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+  border: 3px solid var(--bg-canvas);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border: 3px solid var(--bg-canvas);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 /* App Container */
 .app-container {
   max-width: 1160px;
+  width: 100%;
   margin: 0 auto;
-  padding: 16px 24px 48px;
+  padding: 16px 24px 140px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1 0 auto;
 }
 
 /* Window Bar */
@@ -1134,3 +1183,36 @@ body {
   background-color: #94a3b8;
 }
 
+/* Floating Scroll to Form / Bottom Button */
+.floating-scroll-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 32px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  transition: all 0.2s ease;
+  animation: slide-up 0.2s ease;
+}
+
+.floating-scroll-btn:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.5);
+}
+
+[data-theme="dark"] .floating-scroll-btn {
+  background-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
