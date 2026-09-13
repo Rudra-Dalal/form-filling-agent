@@ -8,11 +8,12 @@ class WindowService {
 
   createMainWindow() {
     this.mainWindow = new BrowserWindow({
-      width: 1100,
-      height: 780,
-      minWidth: 800,
-      minHeight: 600,
-      backgroundColor: '#0f1115',
+      title: 'EIGI Form Agent',
+      width: 1200,
+      height: 820,
+      minWidth: 900,
+      minHeight: 650,
+      backgroundColor: '#f8fafc',
       webPreferences: {
         preload: path.join(__dirname, '..', 'preload.js'),
         contextIsolation: true,

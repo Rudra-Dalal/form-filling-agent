@@ -4,11 +4,14 @@
   "description": "Electron desktop AI agent that reads documents and fills web forms",
   "main": "electron/main.js",
   "scripts": {
+    "prestart": "npm run build:ui",
     "start": "electron .",
+    "predev": "npm run build:ui",
     "dev": "electron .",
     "build:ui": "vite build",
     "test": "node tests/run-all.js",
     "test:backend": ".\\.venv\\Scripts\\pytest backend/tests",
+    "test:e2e": "node tests/e2e-electron.js && node tests/e2e-canonical-flow.js",
     "postinstall": "playwright install chromium"
   },
   "author": "Rudra Dalal",

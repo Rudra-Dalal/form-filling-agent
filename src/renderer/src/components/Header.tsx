@@ -6,39 +6,61 @@ interface HeaderProps {
   statusMessage: string;
 }
 
-const STATUS_COLORS: Record<AgentStatus, string> = {
-  idle: '#6b7280',
-  running: '#3b82f6',
-  paused: '#eab308',
-  waiting_for_user: '#ec4899',
-  human_takeover: '#8b5cf6',
-  ready_for_review: '#10b981',
-  completed: '#10b981',
-  error: '#ef4444',
-};
-
 export const Header: React.FC<HeaderProps> = ({ status, statusMessage }) => {
-  const badgeColor = STATUS_COLORS[status] || '#6b7280';
-  const badgeText = status === 'ready_for_review' ? 'READY FOR REVIEW' : status.toUpperCase();
+  const getStatusDetails = () => {
+    switch (status) {
+      case 'running':
+        return { label: 'Working...', class: 'status-running' };
+      case 'waiting_for_user':
+        return { label: 'Needs Input', class: 'status-waiting' };
+      case 'paused':
+        return { label: 'Paused', class: 'status-paused' };
+      case 'human_takeover':
+        return { label: 'Takeover Active', class: 'status-paused' };
+      case 'ready_for_review':
+        return { label: 'Ready for Review', class: 'status-review' };
+      case 'error':
+        return { label: 'Error', class: 'status-error' };
+      case 'idle':
+      default:
+        return { label: 'Ready', class: 'status-idle' };
+    }
+  };
+
+  const statusInfo = getStatusDetails();
 
   return (
-    <header>
-      <div className="header-row">
-        <h1>Document &rarr; Form AI Agent</h1>
-        <span
-          id="status-badge"
-          className="status-badge"
-          style={{ backgroundColor: badgeColor }}
-        >
-          {badgeText}
-        </span>
+    <div>
+      <div className="window-bar">
+        <div className="window-dots">
+          <span className="window-dot dot-red" />
+          <span className="window-dot dot-yellow" />
+          <span className="window-dot dot-green" />
+        </div>
+        <span className="window-title">EIGI Form Agent &mdash; Student Registration Assistant</span>
+        <div style={{ width: '40px' }} />
       </div>
-      <p id="status-message" className="status-message">
-        {statusMessage || 'Ready to start.'}
-      </p>
-      <p className="subtitle">
-        Phase 1: Reads document, maps fields, fills &amp; verifies form. Never submits.
-      </p>
-    </header>
+
+      <header className="app-header">
+        <div className="brand-section">
+          <div className="brand-icon-box">
+            <span>&#10003;</span>
+          </div>
+          <div>
+            <h1 className="app-title">EIGI Form Agent</h1>
+            <p className="app-subtitle">
+              Reads your documents. Fills the form. Never submits.
+            </p>
+          </div>
+        </div>
+
+        <div className="header-status">
+          <div className={`status-pill ${statusInfo.class}`}>
+            <span className="status-pulse" />
+            <span>{statusInfo.label}</span>
+          </div>
+        </div>
+      </header>
+    </div>
   );
 };
