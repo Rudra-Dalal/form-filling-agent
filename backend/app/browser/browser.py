@@ -19,15 +19,25 @@ class BrowserSession:
             self._pw = await async_playwright().start()
 
         if self.browser is None:
+            launch_args = [
+                "--disable-blink-features=AutomationControlled",
+                "--window-size=1100,700",
+                "--window-position=50,20",
+            ]
             self.browser = await self._pw.chromium.launch(
                 headless=self.headless,
-                args=["--disable-blink-features=AutomationControlled"],
+                args=launch_args,
             )
 
         if self.context is None:
-            self.context = await self.browser.new_context(
-                viewport={"width": 1280, "height": 800}
-            )
+            if self.headless:
+                self.context = await self.browser.new_context(
+                    viewport={"width": 1100, "height": 700}
+                )
+            else:
+                self.context = await self.browser.new_context(
+                    no_viewport=True
+                )
 
         if self.page is None:
             self.page = await self.context.new_page()

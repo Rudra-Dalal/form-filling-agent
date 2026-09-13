@@ -18,8 +18,17 @@ class BrowserSession {
    */
   async launch(targetUrl) {
     try {
-      this.browser = await chromium.launch({ headless: HEADLESS });
-      this.context = await this.browser.newContext();
+      this.browser = await chromium.launch({
+        headless: HEADLESS,
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          '--window-size=1100,700',
+          '--window-position=50,20',
+        ],
+      });
+      this.context = await this.browser.newContext(
+        HEADLESS ? { viewport: { width: 1100, height: 700 } } : { noViewport: true }
+      );
       this.page = await this.context.newPage();
       this.page.setDefaultNavigationTimeout(DEFAULT_NAV_TIMEOUT_MS);
       if (targetUrl) {

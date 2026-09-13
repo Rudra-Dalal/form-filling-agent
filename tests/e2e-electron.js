@@ -65,6 +65,13 @@ async function testLaunchElectron() {
 
   const artifactDir = path.resolve('C:\\Users\\ASUS\\.gemini\\antigravity-ide\\brain\\b3438c9b-e148-4eee-a3b0-bc8c9df217d6');
 
+  // Ensure starting state is Light Mode
+  const currentTheme = await window.evaluate(() => document.documentElement.getAttribute('data-theme') || 'light');
+  if (currentTheme === 'dark') {
+    await window.locator('#theme-toggle-btn').click();
+    await window.waitForTimeout(400);
+  }
+
   // Screenshot in Light Mode
   const lightScreenshotPath = path.join(artifactDir, 'running_electron_ui_light_mode.png');
   await window.screenshot({ path: lightScreenshotPath });
