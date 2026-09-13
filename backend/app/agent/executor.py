@@ -7,7 +7,10 @@ from ..browser.actions import (
     clear_field,
     select_option,
     set_checkbox,
+    set_radio,
+    upload_file,
     click_element,
+    click_navigation,
     SafetyViolationError,
     BrowserActionError,
 )
@@ -22,7 +25,7 @@ class ToolExecutor:
         browser_session: BrowserSession,
         planner: AgentPlanner,
         policy_engine: PolicyEngine,
-        emit: Callable[[str, Dict[str, Any]], None],
+        emit: Callable[[str | EventType, Optional[Dict[str, Any]]], None],
         ask_user: Callable[[str, Optional[str]], Awaitable[str]],
         hand_over_to_user: Callable[[str], Awaitable[None]],
         get_state: Callable[[], AgentState],
@@ -84,6 +87,19 @@ class ToolExecutor:
                 self.emit(EventType.FIELD_FILLED, {"elementIndex": idx, "value": chk})
                 return {"ok": True}
 
+            elif tool_name == "set_radio":
+                await set_radio(page, idx)
+                self.planner.record_filled(idx)
+                self.emit(EventType.FIELD_FILLED, {"elementIndex": idx, "value": True})
+                return {"ok": True}
+
+            elif tool_name == "upload_file":
+                file_path = tool_input.get("filePath") or tool_input.get("file_path", "")
+                await upload_file(page, idx, file_path)
+                self.planner.record_filled(idx)
+                self.emit(EventType.FILE_UPLOADED, {"elementIndex": idx, "filePath": file_path})
+                return {"ok": True}
+
             elif tool_name == "verify_field":
                 exp = tool_input.get("expectedValue") if "expectedValue" in tool_input else tool_input.get("expected_value")
                 result = await verify_field(page, idx, exp)
@@ -101,6 +117,12 @@ class ToolExecutor:
                 await click_element(page, idx)
                 return {"ok": True}
 
+            elif tool_name == "click_navigation":
+                nav_type = tool_input.get("navigationType") or tool_input.get("navigation_type", "NAVIGATION_NEXT")
+                await click_navigation(page, idx)
+                self.emit(EventType.STEP_CHANGED, {"elementIndex": idx, "navigationType": nav_type})
+                return {"ok": True}
+
             elif tool_name == "ask_user":
                 q = tool_input.get("question", "")
                 ctx = tool_input.get("context", "")
@@ -114,7 +136,7 @@ class ToolExecutor:
 
             elif tool_name == "finish_filling":
                 summary = tool_input.get("summary", "Form filled and verified.")
-                self.emit(EventType.COMPLETE, {"summary": summary})
+                self.emit(EventType.READY_FOR_REVIEW, {"summary": summary})
                 return {"ok": True, "summary": summary}
 
             else:

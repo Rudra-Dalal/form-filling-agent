@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>11 Human Takeover Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #1e293b; }
+    fieldset { border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    label { display: block; margin-top: 10px; font-size: 13px; font-weight: 500; }
+    input[type="text"] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    .captcha-box { background: #f1f5f9; border: 2px dashed #94a3b8; padding: 14px; margin-top: 15px; border-radius: 6px; }
+    .captcha-badge { font-family: monospace; font-size: 20px; letter-spacing: 4px; font-weight: bold; background: #e2e8f0; padding: 6px 12px; display: inline-block; }
+    button { padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 4px; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h1>11 Human Takeover (CAPTCHA Challenge) Form</h1>
+  <form id="takeover-form">
+    <fieldset>
+      <legend>Standard Fields</legend>
+      <label for="student-name">Student Full Name</label>
+      <input type="text" id="student-name" name="fullName" />
+
+      <label for="city">City</label>
+      <input type="text" id="city" name="city" />
+    </fieldset>
+
+    <fieldset class="captcha-box">
+      <legend style="font-weight: bold; color: #d97706;">Security Verification</legend>
+      <p>Human interaction required:</p>
+      <div class="captcha-badge">K9X2B</div>
+      <label for="captcha-input">Enter Security Code Above</label>
+      <input type="text" id="captcha-input" name="captchaCode" placeholder="Enter CAPTCHA" />
+    </fieldset>
+
+    <button type="submit" id="submit-btn" onclick="window.__submitted = true; return false;">
+      Submit
+    </button>
+  </form>
+</body>
+</html>

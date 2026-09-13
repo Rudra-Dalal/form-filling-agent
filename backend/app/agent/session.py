@@ -3,10 +3,11 @@ import uuid
 from typing import Optional, Dict, Any, Callable, List
 from ..schemas.common import AgentState, EventType
 from ..schemas.document import DocumentData
-from ..schemas.browser import FormSnapshot
+from ..schemas.browser import FormSnapshot, FormElement
 from ..config import has_llm_key, DEFAULT_MODEL, MAX_TOKENS, HEADLESS
 from ..browser.browser import BrowserSession
 from ..browser.mapper import find_matching_option
+from ..browser.detector import is_submit_control, classify_action_control
 from ..policy.engine import PolicyEngine
 from ..registry.definitions import build_standard_tool_registry
 from ..document.extractor import extract_document
@@ -101,18 +102,25 @@ class AgentSession:
                 "snapshot": [el.model_dump() for el in self.current_snapshot.elements],
                 "reason": "resumed-from-user",
             })
+            # Reconcile changes made by user
+            for el in self.current_snapshot.elements:
+                if el.currentValue:
+                    self.planner.record_filled(el.elementIndex)
         except Exception as err:
             self.emit(EventType.STATUS, {"message": f"Resumed from user. (Form re-read note: {err})"})
         self.resume()
 
-    def provide_user_answer(self, prompt_id: str, answer: str) -> None:
-        if prompt_id in self._pending_prompts:
-            fut = self._pending_prompts.pop(prompt_id)
+    def provide_user_answer(self, prompt_id: Optional[str], answer: str) -> None:
+        target_id = prompt_id if (prompt_id and prompt_id in self._pending_prompts) else (
+            next(iter(self._pending_prompts.keys())) if self._pending_prompts else None
+        )
+        if target_id and target_id in self._pending_prompts:
+            fut = self._pending_prompts.pop(target_id)
             if not fut.done():
                 fut.set_result(answer)
             self.state = AgentState.RUNNING
             self.status_message = "Processing answer..."
-            self.emit(EventType.STATUS, {"message": f"Received answer for {prompt_id}."})
+            self.emit(EventType.STATUS, {"message": f"Received answer for {target_id}."})
 
     async def _ask_user(self, question: str, context: Optional[str] = None) -> str:
         self.state = AgentState.WAITING_FOR_USER
@@ -230,46 +238,128 @@ class AgentSession:
 
         await self._wait_if_paused()
 
-        # Generate fill plan
-        plan = self.planner.generate_fill_plan(elements)
-        self.emit(EventType.STATUS, {"message": f"Mapped {len(plan)} candidate form fields."})
+        # Multi-Step & Dynamic Form execution loop
+        max_steps = 10
+        step_count = 0
 
-        for item in plan:
+        file_attachments = {}
+        if self.document_path:
+            file_attachments["document.upload"] = str(self.document_path)
+            file_attachments["student.photo"] = str(self.document_path)
+            file_attachments["student.idProof"] = str(self.document_path)
+
+        while step_count < max_steps:
+            step_count += 1
             await self._wait_if_paused()
 
-            el = next((e for e in elements if e.elementIndex == item.element_index), None)
-            if not el:
+            # Read fresh snapshot for this step
+            res = await self.executor.execute("read_form", {})
+            elements = res.get("elements", [])
+            self.current_snapshot = FormSnapshot(url=self.target_url, elements=elements)
+
+            # Generate fill plan for visible fields
+            plan = self.planner.generate_fill_plan(elements, file_attachments=file_attachments)
+            self.emit(EventType.STATUS, {"message": f"Step {step_count}: Mapped {len(plan)} candidate form fields."})
+
+            for item in plan:
+                await self._wait_if_paused()
+
+                el = next((e for e in elements if e.elementIndex == item.element_index), None)
+                if not el:
+                    continue
+
+                if item.is_file:
+                    await self.executor.execute("upload_file", {
+                        "elementIndex": item.element_index,
+                        "filePath": str(item.value),
+                    })
+                elif item.is_radio:
+                    await self.executor.execute("set_radio", {
+                        "elementIndex": item.element_index,
+                    })
+                elif el.tagName == "select":
+                    opt_to_select = find_matching_option(str(item.value), el) or str(item.value)
+                    await self.executor.execute("select_option", {
+                        "elementIndex": item.element_index,
+                        "optionLabel": opt_to_select,
+                    })
+                elif el.type == "checkbox":
+                    await self.executor.execute("set_checkbox", {
+                        "elementIndex": item.element_index,
+                        "checked": bool(item.value),
+                    })
+                else:
+                    await self.executor.execute("fill_text", {
+                        "elementIndex": item.element_index,
+                        "value": str(item.value),
+                    })
+
+                self.planner.record_filled(item.element_index, item.doc_key)
+                await self._wait_if_paused()
+
+                # Verify field with bounded retry
+                v_res = await self.executor.execute("verify_field", {
+                    "elementIndex": item.element_index,
+                    "expectedValue": item.value,
+                })
+
+                if not v_res.get("matches", False):
+                    # Single recovery retry for text fields
+                    if el.tagName not in ("select", "file") and el.type not in ("checkbox", "radio"):
+                        await self.executor.execute("clear_field", {"elementIndex": item.element_index})
+                        await self.executor.execute("fill_text", {
+                            "elementIndex": item.element_index,
+                            "value": str(item.value),
+                        })
+                        await self.executor.execute("verify_field", {
+                            "elementIndex": item.element_index,
+                            "expectedValue": item.value,
+                        })
+
+                # Dynamic field check
+                if el.tagName == "select" or el.type in ("checkbox", "radio"):
+                    await asyncio.sleep(0.1)
+                    re_res = await self.executor.execute("read_form", {})
+                    new_elements = re_res.get("elements", [])
+                    if len(new_elements) > len(elements):
+                        self.emit(EventType.DYNAMIC_FIELD_DETECTED, {
+                            "message": f"Discovered {len(new_elements) - len(elements)} dynamic fields.",
+                            "parentIndex": item.element_index,
+                        })
+                        elements = new_elements
+                        self.current_snapshot = FormSnapshot(url=self.target_url, elements=elements)
+                        extra_plan = self.planner.generate_fill_plan(elements, file_attachments=file_attachments)
+                        for ep in extra_plan:
+                            if not any(p.element_index == ep.element_index for p in plan):
+                                plan.append(ep)
+
+            # Check for multi-step navigation controls
+            next_control: Optional[FormElement] = None
+            for e in elements:
+                # Find interactive buttons classified as NAVIGATION_NEXT
+                if e.actionType == "NAVIGATION_NEXT" or classify_action_control(e) == "NAVIGATION_NEXT":
+                    if not e.isSubmit and not is_submit_control(e):
+                        next_control = e
+                        break
+
+            if next_control is not None:
+                self.emit(EventType.STATUS, {"message": f"Navigating to next step ({next_control.label or 'Next'})..."})
+                await self.executor.execute("click_navigation", {
+                    "elementIndex": next_control.elementIndex,
+                    "navigationType": "NAVIGATION_NEXT",
+                })
+                self.planner.reset_step_indices()
+                self.emit(EventType.STEP_CHANGED, {"currentStep": step_count, "nextStep": step_count + 1})
+                await asyncio.sleep(0.3)
                 continue
-
-            if el.tagName == "select":
-                opt_to_select = find_matching_option(str(item.value), el) or str(item.value)
-                await self.executor.execute("select_option", {
-                    "elementIndex": item.element_index,
-                    "optionLabel": opt_to_select,
-                })
-            elif el.type in ("checkbox", "radio"):
-                await self.executor.execute("set_checkbox", {
-                    "elementIndex": item.element_index,
-                    "checked": bool(item.value),
-                })
             else:
-                await self.executor.execute("fill_text", {
-                    "elementIndex": item.element_index,
-                    "value": str(item.value),
-                })
-
-            await self._wait_if_paused()
-
-            # Verify field
-            await self.executor.execute("verify_field", {
-                "elementIndex": item.element_index,
-                "expectedValue": item.value,
-            })
+                # No safe next step button; multi-step sequence complete
+                break
 
         verified_count = len(self.planner.verified_fields)
         summary = (
-            f"Successfully filled and verified {verified_count} fields. "
-            f"Unverified or ambiguous items (e.g. hostel checkbox) were left untouched for human review. "
+            f"Successfully filled and verified {verified_count} fields across {step_count} step(s). "
+            f"Unverified or ambiguous items (e.g. hostel checkbox, consent declarations) were left untouched for human review. "
             f"Ready for user review."
         )
 
@@ -287,7 +377,7 @@ class AgentSession:
 
         done = False
         iterations = 0
-        max_iterations = 25
+        max_iterations = 35
 
         while not done and iterations < max_iterations:
             iterations += 1

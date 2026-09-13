@@ -1,8 +1,10 @@
 from pathlib import Path
 import pytest
-from app.document.normalizer import match_rule, normalize_fields
+import openpyxl
+from app.document.normalizer import match_rule, normalize_fields, normalize_date_value
 from app.document.schemas import empty_canonical_record, validate_canonical_record
 from app.document.parsers.docx_parser import parse_docx
+from app.document.parsers.xlsx_parser import parse_xlsx
 from app.document.extractor import extract_document
 from app.schemas.document import ExtractedField
 
@@ -14,6 +16,7 @@ def test_match_rule_maps_common_label_variants():
     assert match_rule("Date of Birth") == "student.dateOfBirth"
     assert match_rule("DOB") == "student.dateOfBirth"
     assert match_rule("Gender") == "student.gender"
+    assert match_rule("Applying for Grade") == "student.grade"
     assert match_rule("Father's Name") == "parent.fatherName"
     assert match_rule("Mother's Name") == "parent.motherName"
     assert match_rule("Contact Number") == "parent.contactNumber"
@@ -22,11 +25,18 @@ def test_match_rule_maps_common_label_variants():
     assert match_rule("State") == "address.state"
     assert match_rule("PIN Code") == "address.pincode"
 
+def test_normalize_date_variants():
+    assert normalize_date_value("2015-03-12") == "2015-03-12"
+    assert normalize_date_value("12/03/2015") == "2015-03-12"
+    assert normalize_date_value("12-03-2015") == "2015-03-12"
+    assert normalize_date_value("5/7/2014") == "2014-07-05"
+
 def test_normalize_fields_builds_canonical_record_and_unmapped():
     fields = [
         ExtractedField(label="Student Name", value="Aditi Sharma"),
         ExtractedField(label="Date of Birth", value="12/03/2015"),
         ExtractedField(label="Gender", value="Female"),
+        ExtractedField(label="Applying for Grade", value="Grade 8"),
         ExtractedField(label="Custom School ID", value="SCH-9988"),
     ]
     record, unmapped = normalize_fields(fields)
@@ -34,6 +44,7 @@ def test_normalize_fields_builds_canonical_record_and_unmapped():
     # Verify date normalization: 12/03/2015 -> 2015-03-12
     assert record.student.dateOfBirth == "2015-03-12"
     assert record.student.gender == "Female"
+    assert record.student.grade == "Grade 8"
     assert len(unmapped) == 1
     assert unmapped[0].label == "Custom School ID"
     assert unmapped[0].value == "SCH-9988"
@@ -62,6 +73,20 @@ def test_parse_docx_reads_fixture():
     assert "Aditi Rakesh Sharma" in raw_text
     assert "Rakesh Kumar Sharma" in raw_text
 
+def test_parse_xlsx_reads_dynamic_workbook(tmp_path):
+    wb_path = tmp_path / "test_admission.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Student"
+    ws.append(["Field", "Value"])
+    ws.append(["Student Name", "Aditi Sharma"])
+    ws.append(["DOB", "2015-03-12"])
+    wb.save(str(wb_path))
+
+    content = parse_xlsx(wb_path)
+    assert "Student Name : Aditi Sharma" in content
+    assert "DOB : 2015-03-12" in content
+
 def test_extract_document_pipeline_on_docx_fixture():
     doc_data = extract_document(DOCX_FIXTURE, dry_run=True)
     assert doc_data.student.fullName == "Aditi Rakesh Sharma"
@@ -71,4 +96,3 @@ def test_extract_document_pipeline_on_docx_fixture():
     assert doc_data.parent.motherName == "Sunita Sharma"
     assert doc_data.parent.contactNumber == "9876543210"
     assert len(doc_data.warnings) > 0  # Ambiguous address warning
-

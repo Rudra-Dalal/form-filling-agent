@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>08 Checkbox Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #1e293b; }
+    fieldset { border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    .checkbox-row { margin: 12px 0; display: flex; align-items: center; gap: 8px; }
+    label { font-size: 14px; }
+    .consent-box { border-left: 3px solid #e11d48; background: #fff1f2; padding: 10px; margin-top: 15px; }
+    button { padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>08 Checkbox Form</h1>
+  <form id="checkbox-form">
+    <fieldset>
+      <legend>Optional Facilities</legend>
+      <div class="checkbox-row">
+        <input type="checkbox" id="transport-opt" name="transport" />
+        <label for="transport-opt">Avail School Bus Facility</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="meal-opt" name="mealPlan" />
+        <label for="meal-opt">Enroll in Cafeteria Lunch Program</label>
+      </div>
+    </fieldset>
+
+    <fieldset class="consent-box">
+      <legend style="color: #be123c; font-weight: bold;">Legal Declaration & Terms</legend>
+      <div class="checkbox-row">
+        <input type="checkbox" id="terms-consent" name="termsConsent" />
+        <label for="terms-consent">
+          I declare and certify that all details submitted are true and accurate, and I agree to the institution's terms of service and regulations.
+        </label>
+      </div>
+    </fieldset>
+
+    <button type="submit" id="submit-btn" onclick="window.__submitted = true; return false;">
+      Submit Registration
+    </button>
+  </form>
+</body>
+</html>

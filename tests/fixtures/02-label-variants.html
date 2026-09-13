@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>02 Label Variants Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #333; }
+    fieldset { border: 1px solid #aaa; margin-bottom: 20px; padding: 16px; border-radius: 6px; }
+    legend { font-weight: bold; }
+    label { display: block; margin-top: 10px; font-size: 13px; }
+    input[type="text"], input[type="date"], select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { margin-top: 15px; padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>02 Label Variants Form</h1>
+  <form id="label-variants-form">
+    <fieldset>
+      <legend>Applicant Profile</legend>
+      <label for="candidate-name">Candidate Full Name</label>
+      <input type="text" id="candidate-name" name="candidate_full_name" />
+
+      <label for="birth-date">Birth Date (D.O.B.)</label>
+      <input type="date" id="birth-date" name="d_o_b" />
+
+      <label for="applicant-sex">Sex</label>
+      <select id="applicant-sex" name="applicant_sex">
+        <option value="">-- Choose --</option>
+        <option value="female">Female</option>
+        <option value="male">Male</option>
+      </select>
+
+      <label for="admission-class">Class Applying For</label>
+      <select id="admission-class" name="admission_class">
+        <option value="">-- Standard --</option>
+        <option value="VI">Class VI</option>
+        <option value="VII">Class VII</option>
+        <option value="VIII">Class VIII</option>
+        <option value="IX">Class IX</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Guardian Credentials</legend>
+      <label for="father-full">Father Full Name</label>
+      <input type="text" id="father-full" name="father_full" />
+
+      <label for="mother-full">Mother Full Name</label>
+      <input type="text" id="mother-full" name="mother_full" />
+
+      <label for="mobile-no">Mobile Number</label>
+      <input type="text" id="mobile-no" name="mobile_no" />
+    </fieldset>
+
+    <fieldset>
+      <legend>Location Details</legend>
+      <label for="res-address">Residential Address Line 1</label>
+      <input type="text" id="res-address" name="res_address" />
+
+      <label for="city-town">City / Town</label>
+      <input type="text" id="city-town" name="city_town" />
+
+      <label for="state-province">State / Province</label>
+      <input type="text" id="state-province" name="state_province" />
+
+      <label for="postal-pin">Postal Code / PIN</label>
+      <input type="text" id="postal-pin" name="postal_pin" />
+    </fieldset>
+
+    <button type="submit" id="apply-btn" onclick="window.__submitted = true; return false;">
+      Apply Now
+    </button>
+  </form>
+</body>
+</html>

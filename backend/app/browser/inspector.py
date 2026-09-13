@@ -1,18 +1,23 @@
 from typing import List
 from playwright.async_api import Page
 from .models import FormElement, SelectOption
-from .detector import classify_control, is_submit_control
+from .detector import classify_control, is_submit_control, is_consent_checkbox, classify_action_control
 
-COLLECT_ELEMENTS_SCRIPT = """
+COLLECT_ELEMENTS_SCRIPT = r"""
 (() => {
   const selector = 'input, select, textarea, button, [role="button"], [contenteditable="true"]';
   const allNodes = Array.from(document.querySelectorAll(selector));
 
-  // Filter out hidden inputs and elements with display:none or visibility:hidden
+  // Filter out hidden inputs and elements with display:none, visibility:hidden, or inside hidden ancestors
   const nodes = allNodes.filter((node) => {
     if (node.type === 'hidden') return false;
-    const style = window.getComputedStyle(node);
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (typeof node.checkVisibility === 'function') {
+      if (!node.checkVisibility({ checkVisibilityCSS: true })) return false;
+    } else {
+      const style = window.getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      if (node.offsetParent === null && style.position !== 'fixed') return false;
+    }
     return true;
   });
 
@@ -54,6 +59,18 @@ COLLECT_ELEMENTS_SCRIPT = """
     return '';
   }
 
+  function getStepNumber(node) {
+    const stepContainer = node.closest('[data-step], .step, .tab-pane, .form-step, .wizard-step');
+    if (stepContainer) {
+      const attr = stepContainer.getAttribute('data-step');
+      if (attr && !isNaN(parseInt(attr, 10))) return parseInt(attr, 10);
+      const idOrClass = (stepContainer.id + ' ' + stepContainer.className);
+      const match = idOrClass.match(/step[-_]?(\d+)/i);
+      if (match) return parseInt(match[1], 10);
+    }
+    return null;
+  }
+
   return nodes.map((node, index) => {
     let options = [];
     let selectedOptionText = '';
@@ -72,6 +89,9 @@ COLLECT_ELEMENTS_SCRIPT = """
       currentValue = selectedOptionText || selectedOptionValue || node.value || '';
     } else if (node.type === 'checkbox' || node.type === 'radio') {
       currentValue = String(Boolean(node.checked));
+    } else if (node.type === 'file') {
+      const fileNames = Array.from(node.files || []).map(f => f.name);
+      currentValue = fileNames.join(', ');
     } else {
       currentValue = node.value ?? node.innerText ?? '';
     }
@@ -84,14 +104,17 @@ COLLECT_ELEMENTS_SCRIPT = """
       name: node.name || '',
       placeholder: node.placeholder || '',
       disabled: Boolean(node.disabled),
+      readOnly: Boolean(node.readOnly),
       required: Boolean(node.required || node.getAttribute('aria-required') === 'true'),
       label: labelFor(node).slice(0, 200),
       legend: getLegend(node),
+      value: node.value || '',
       currentValue,
       checked: (node.type === 'checkbox' || node.type === 'radio') ? Boolean(node.checked) : false,
       options,
       selectedText: selectedOptionText,
       selectedValue: selectedOptionValue,
+      step: getStepNumber(node),
     };
   });
 })();
@@ -140,6 +163,10 @@ async def inspect_page(page: Page) -> List[FormElement]:
     elements: List[FormElement] = []
     for raw in raw_elements:
         opts = [SelectOption(value=o.get("value", ""), text=o.get("text", "")) for o in raw.get("options", [])]
+        is_sub = is_submit_control(raw)
+        action_type = classify_action_control(raw)
+        is_consent = is_consent_checkbox(raw)
+
         el = FormElement(
             elementIndex=raw["elementIndex"],
             tagName=raw["tagName"],
@@ -151,12 +178,16 @@ async def inspect_page(page: Page) -> List[FormElement]:
             placeholder=raw["placeholder"],
             required=raw["required"],
             disabled=raw["disabled"],
+            readOnly=raw.get("readOnly", False),
             currentValue=raw["currentValue"],
             checked=raw["checked"],
             selectedText=raw["selectedText"],
             selectedValue=raw["selectedValue"],
             options=opts,
-            isSubmit=is_submit_control(raw),
+            isSubmit=is_sub,
+            isConsent=is_consent,
+            actionType=action_type,
+            step=raw.get("step"),
         )
         elements.append(el)
 

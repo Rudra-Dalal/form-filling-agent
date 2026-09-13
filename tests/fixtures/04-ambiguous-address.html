@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>04 Ambiguous Address Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #333; }
+    fieldset { border: 1px solid #cbd5e1; margin-bottom: 20px; padding: 16px; border-radius: 6px; }
+    legend { font-weight: bold; color: #1e40af; }
+    label { display: block; margin-top: 10px; font-size: 13px; }
+    input[type="text"], input[type="date"] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { margin-top: 15px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>04 Ambiguous Address Registration Form</h1>
+  <form id="address-form">
+    <fieldset>
+      <legend>Student Identity</legend>
+      <label for="student-name">Student Full Name</label>
+      <input type="text" id="student-name" name="student_name" />
+
+      <label for="dob">Date of Birth</label>
+      <input type="date" id="dob" name="dob" />
+    </fieldset>
+
+    <fieldset>
+      <legend>Permanent Address Details</legend>
+      <label for="perm-street">Permanent Street</label>
+      <input type="text" id="perm-street" name="perm_street" />
+
+      <label for="perm-city">Permanent City</label>
+      <input type="text" id="perm-city" name="perm_city" />
+
+      <label for="perm-state">Permanent State</label>
+      <input type="text" id="perm-state" name="perm_state" />
+
+      <label for="perm-pin">Permanent PIN Code</label>
+      <input type="text" id="perm-pin" name="perm_pin" />
+    </fieldset>
+
+    <fieldset>
+      <legend>Correspondence Address Details</legend>
+      <label for="corr-street">Correspondence Street</label>
+      <input type="text" id="corr-street" name="corr_street" />
+
+      <label for="corr-city">Correspondence City</label>
+      <input type="text" id="corr-city" name="corr_city" />
+
+      <label for="corr-state">Correspondence State</label>
+      <input type="text" id="corr-state" name="corr_state" />
+
+      <label for="corr-pin">Correspondence PIN Code</label>
+      <input type="text" id="corr-pin" name="corr_pin" />
+    </fieldset>
+
+    <button type="submit" id="submit-btn" onclick="window.__submitted = true; return false;">
+      Submit
+    </button>
+  </form>
+</body>
+</html>

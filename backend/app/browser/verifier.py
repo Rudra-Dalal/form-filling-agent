@@ -1,8 +1,15 @@
 import re
+from pathlib import Path
 from typing import Optional, Any
 from playwright.async_api import Page
 from .models import VerifyResult
 from .inspector import inspect_page
+
+ROMAN_NUMERAL_MAP = {
+    'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5,
+    'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10,
+    'xi': 11, 'xii': 12
+}
 
 def normalize_date_for_comparison(val: Optional[str]) -> Optional[str]:
     if not val or not isinstance(val, str):
@@ -16,6 +23,17 @@ def normalize_date_for_comparison(val: Optional[str]) -> Optional[str]:
     dmy_match = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$', trimmed)
     if dmy_match:
         return f"{dmy_match.group(3)}-{dmy_match.group(2).zfill(2)}-{dmy_match.group(1).zfill(2)}"
+    return None
+
+def extract_grade_number(text: str) -> Optional[int]:
+    clean = text.strip().lower()
+    num = re.search(r'\d+', clean)
+    if num:
+        return int(num.group(0))
+    words = re.findall(r'[a-z]+', clean)
+    for w in words:
+        if w in ROMAN_NUMERAL_MAP:
+            return ROMAN_NUMERAL_MAP[w]
     return None
 
 async def verify_field(page: Page, element_index: int, expected_value: Any) -> VerifyResult:
@@ -40,7 +58,12 @@ async def verify_field(page: Page, element_index: int, expected_value: Any) -> V
     matches = False
     actual = ""
 
-    if field.tagName == "select":
+    if field.type == "file":
+        actual = str(field.currentValue or "")
+        expected_filename = Path(str(expected_value)).name.lower()
+        matches = expected_filename in actual.lower()
+
+    elif field.tagName == "select":
         selected_text = clean_text(field.selectedText)
         selected_val = clean_text(field.selectedValue)
         current_val = clean_text(field.currentValue)
@@ -50,13 +73,13 @@ async def verify_field(page: Page, element_index: int, expected_value: Any) -> V
         matches = (selected_text == expected or selected_val == expected or current_val == expected)
 
         if not matches:
-            exp_num = re.search(r'\d+', expected)
-            act_num = re.search(r'\d+', f"{selected_text} {selected_val}")
-            if exp_num and act_num and exp_num.group(0) == act_num.group(0):
+            exp_num = extract_grade_number(expected)
+            act_num = extract_grade_number(f"{selected_text} {selected_val} {current_val}")
+            if exp_num is not None and act_num is not None and exp_num == act_num:
                 matches = True
 
     elif field.type in ("checkbox", "radio"):
-        expected_bool = expected_value if isinstance(expected_value, bool) else str(expected_value).lower() == "true"
+        expected_bool = expected_value if isinstance(expected_value, bool) else str(expected_value).lower() in ("true", "1", "yes")
         actual_bool = bool(field.checked)
         actual = str(actual_bool)
         matches = (actual_bool == expected_bool)
@@ -68,9 +91,17 @@ async def verify_field(page: Page, element_index: int, expected_value: Any) -> V
         matches = (norm_actual == norm_expected)
 
         if not matches:
+            # Date normalization
             exp_date = normalize_date_for_comparison(str(expected_value))
             act_date = normalize_date_for_comparison(actual)
             if exp_date and act_date and exp_date == act_date:
+                matches = True
+
+        if not matches:
+            # Phone number normalization (ignoring formatting like dashes, spaces, brackets)
+            exp_digits = re.sub(r'\D', '', str(expected_value))
+            act_digits = re.sub(r'\D', '', actual)
+            if exp_digits and act_digits and (exp_digits == act_digits or act_digits.endswith(exp_digits) or exp_digits.endswith(act_digits)):
                 matches = True
 
     return VerifyResult(

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>12 Verification Failure Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #1e293b; }
+    fieldset { border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    label { display: block; margin-top: 10px; font-size: 13px; font-weight: 500; }
+    input[type="text"] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 4px; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h1>12 Verification Failure Form</h1>
+  <form id="failure-form">
+    <fieldset>
+      <legend>Applicant Profile</legend>
+      <label for="student-name">Student Full Name</label>
+      <!-- On first input event, this field alters the value to simulate a flaky JS input mask -->
+      <input type="text" id="student-name" name="fullName" oninput="handleFirstInput(this)" />
+
+      <label for="city">City</label>
+      <input type="text" id="city" name="city" />
+    </fieldset>
+
+    <button type="submit" id="submit-btn" onclick="window.__submitted = true; return false;">
+      Submit Form
+    </button>
+  </form>
+
+  <script>
+    let firstAttempt = true;
+    function handleFirstInput(el) {
+      if (firstAttempt) {
+        firstAttempt = false;
+        // Corrupt value on first attempt to trigger verification mismatch
+        setTimeout(() => {
+          el.value = 'Corrupted Name';
+        }, 50);
+      }
+    }
+  </script>
+</body>
+</html>

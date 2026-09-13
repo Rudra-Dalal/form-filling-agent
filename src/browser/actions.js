@@ -151,7 +151,7 @@ async function clickElement(page, elementIndex) {
 
     if (type === 'submit') return true;
 
-    const submitKeywords = /submit|apply now|register now|complete application|send registration/i;
+    const submitKeywords = /\b(submit|apply|finalize|confirm|pay|place\s*order|send\s*application|complete\s*registration|finish\s*application|register\s*now|complete\s*application|send\s*registration|proceed\s*to\s*pay|proceed\s*to\s*checkout|checkout)\b/i;
     if (submitKeywords.test(text) || submitKeywords.test(name) || submitKeywords.test(id)) {
       return true;
     }

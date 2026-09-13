@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>05 Multi-Step Admission Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #1e293b; }
+    .step-container { display: none; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; background: #fff; }
+    .step-container.active { display: block; }
+    .step-indicator { margin-bottom: 16px; font-weight: bold; color: #2563eb; }
+    label { display: block; margin-top: 10px; font-size: 13px; font-weight: 500; }
+    input[type="text"], input[type="date"], select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; border: 1px solid #94a3b8; border-radius: 4px; }
+    .btn-row { margin-top: 20px; display: flex; gap: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+    .btn-next { background: #2563eb; color: #fff; }
+    .btn-prev { background: #64748b; color: #fff; }
+    .btn-submit { background: #059669; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>05 Multi-Step Admission Form</h1>
+
+  <form id="multistep-form">
+    <!-- Step 1: Student Information -->
+    <div id="step-1" class="step-container active" data-step="1">
+      <div class="step-indicator">Step 1 of 3: Personal Information</div>
+      <label for="step1-name">Student Full Name</label>
+      <input type="text" id="step1-name" name="fullName" />
+
+      <label for="step1-dob">Date of Birth</label>
+      <input type="date" id="step1-dob" name="dateOfBirth" />
+
+      <label for="step1-gender">Gender</label>
+      <select id="step1-gender" name="gender">
+        <option value="">-- Select --</option>
+        <option value="female">Female</option>
+        <option value="male">Male</option>
+      </select>
+
+      <label for="step1-grade">Applying for Grade</label>
+      <select id="step1-grade" name="grade">
+        <option value="">-- Select --</option>
+        <option value="7">Grade 7</option>
+        <option value="8">Grade 8</option>
+        <option value="9">Grade 9</option>
+      </select>
+
+      <div class="btn-row">
+        <button type="button" class="btn-next" id="next-to-step-2" onclick="showStep(2)">
+          Next Step: Parent Details
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Parent Information -->
+    <div id="step-2" class="step-container" data-step="2">
+      <div class="step-indicator">Step 2 of 3: Parent Information</div>
+      <label for="step2-father">Father Full Name</label>
+      <input type="text" id="step2-father" name="fatherName" />
+
+      <label for="step2-mother">Mother Full Name</label>
+      <input type="text" id="step2-mother" name="motherName" />
+
+      <label for="step2-contact">Primary Contact Number</label>
+      <input type="text" id="step2-contact" name="contactNumber" />
+
+      <div class="btn-row">
+        <button type="button" class="btn-prev" onclick="showStep(1)">Back</button>
+        <button type="button" class="btn-next" id="next-to-step-3" onclick="showStep(3)">
+          Next Step: Address
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: Address & Final Review -->
+    <div id="step-3" class="step-container" data-step="3">
+      <div class="step-indicator">Step 3 of 3: Residential Address</div>
+      <label for="step3-street">Residential Address</label>
+      <input type="text" id="step3-street" name="street" />
+
+      <label for="step3-city">City</label>
+      <input type="text" id="step3-city" name="city" />
+
+      <label for="step3-state">State</label>
+      <input type="text" id="step3-state" name="state" />
+
+      <label for="step3-pincode">PIN Code</label>
+      <input type="text" id="step3-pincode" name="pincode" />
+
+      <div class="btn-row">
+        <button type="button" class="btn-prev" onclick="showStep(2)">Back</button>
+        <!-- The final submission button: must NEVER be clicked by agent -->
+        <button type="submit" class="btn-submit" id="final-submit-btn" onclick="window.__submitted = true; return false;">
+          Submit Application
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <script>
+    function showStep(stepNum) {
+      document.querySelectorAll('.step-container').forEach(el => el.classList.remove('active'));
+      const nextStep = document.getElementById('step-' + stepNum);
+      if (nextStep) nextStep.classList.add('active');
+    }
+  </script>
+</body>
+</html>

@@ -1,407 +1,278 @@
-# Form-Filling Agent (EIGI AI Project)
+# Form-Filling Agent (EIGI AI Project — Phase 1 + Phase 2)
 
-> **Desktop AI agent that reads student documents (PDF, DOCX, XLSX) and fills web forms using Playwright, verifying each field, asking for human clarification when needed, and stopping safely before form submission.**
-
----
-
-## 1. Project Purpose & Problem Statement
-
-Form-filling across school, college, and administrative portals is repetitive, error-prone, and time-consuming. However, full end-to-end automation often fails when documents have varying formats or when forms have slight label differences (e.g., `"DOB"` vs `"Date of Birth"`).
-
-The **Form-Filling Agent** addresses this problem by combining:
-1. **Document Intelligence**: Parsing heterogeneous document formats (PDF, Word, Excel) and extracting structured student/parent/address data.
-2. **Visual Web Automation**: Controlling a visible Chromium browser with Playwright using a numbered set-of-marks interactive DOM representation.
-3. **Reasoned Field Matching**: Using an LLM to semantically match document fields to form controls instead of brittle hardcoded selectors.
-4. **Active Verification & Safety**: Verifying every field value on the live web page post-fill, asking the human user for clarification on ambiguity, and **strictly never submitting the form**.
+> **Desktop AI agent that reads documents (PDF, DOCX, XLSX) and fills web forms using a visible Playwright Chromium browser, verifying each field in the live DOM, handling multi-step forms, dynamic fields, radio/checkbox intelligence, file attachments, and strictly stopping at `READY_FOR_REVIEW` without ever submitting the form.**
 
 ---
 
-## 2. Architectural Principle
+## 1. Project Overview & Problem Statement
 
-The system adheres to a strict architectural rule:
+Form-filling across admission, enrollment, and administrative portals is repetitive, error-prone, and time-consuming. Automated solutions often fail because:
+1. Documents arrive in disparate formats (Word, Excel, PDF) with inconsistent labeling.
+2. Forms contain multi-step wizards, conditional/dynamic fields, radio button groups, consent declarations, and file upload requirements.
+3. Automated tools risk making accidental or unauthorized submissions.
+
+The **Form-Filling Agent** solves these challenges by combining:
+- **Document Intelligence**: Standardizing input documents into canonical structured data (`student`, `parent`, `address`).
+- **Visual Web Automation**: Controlling a visible Chromium instance via Playwright using an injected numbered set-of-marks representation.
+- **Phase-2 Advanced Capabilities**: Multi-step wizard traversal, dynamic field detection, radio group matching, consent checkbox isolation, native file uploads, and single-attempt bounded error recovery.
+- **Multi-Layer Safety Engine**: Strict policy engine and DOM-level submission blockers that ensure the agent **NEVER** submits a form under any circumstances. The terminal state is always **`READY_FOR_REVIEW`**, leaving the browser open for human inspection and final submission.
+
+---
+
+## 2. Core Architectural Principle
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │         The AGENT decides WHAT should happen.          │
 │        The TOOL/LAYER decides HOW it happens.          │
+│    The POLICY ENGINE enforces WHAT IS NEVER ALLOWED.   │
 └────────────────────────────────────────────────────────┘
 ```
 
-- **The Agent** never touches Playwright locators, never executes raw selectors, and never directly accesses the filesystem.
-- **The Browser Layer** owns all Playwright interactions (fill, select, check, verify, navigate).
-- **The Document Layer** owns file parsing (pdf-parse, mammoth, xlsx) and data normalization.
-- **The Tools Layer** provides a controlled, safe API to the agent (no arbitrary computer control or terminal execution).
-- **The Electron Shell** provides desktop security, isolated renderer context, and asynchronous IPC streaming.
+- **The Agent (Planner)**: Evaluates semantic mappings between document data and DOM elements; never touches raw selectors or locators directly.
+- **The Policy Engine**: Acts as an immutable safety boundary between the agent and the browser. Any tool call matching submission keywords or unauthorized consent checkboxes is intercepted and rejected with a `SafetyViolationError`.
+- **The Browser Layer**: Executes Playwright actions (`fill_text`, `select_option`, `set_radio`, `set_checkbox`, `upload_file`, `click_navigation`), inspects live DOM state, and performs strict post-fill verification.
+- **The Document Layer**: Parses PDF, DOCX, and XLSX files, normalizes fields into canonical keys, and detects ambiguities (such as differing permanent and correspondence addresses).
+- **The Desktop UI**: Built with Electron, React 19, TypeScript, and Vite. Streams live status logs, provides interactive user clarification prompts, and allows live pause, resume, and human takeover.
 
 ---
 
-## 3. High-Level Architecture Diagram
+## 3. System Architecture
 
 ```
-+-------------------------------------------------------------------------+
-|                        ELECTRON DESKTOP SHELL                           |
-|                                                                         |
-|  +---------------------------+           +---------------------------+  |
-|  |       UI / RENDERER       |           |       MAIN PROCESS        |  |
-|  |  (Vanilla HTML/CSS/JS)    |           |  - App Lifecycle          |  |
-|  |  - Document Upload        |   IPC     |  - BrowserWindow Service  |  |
-|  |  - Task Configuration     |<=========>|  - Document IPC Handler   |  |
-|  |  - Live Activity Log      | (Preload) |  - Agent IPC Handler      |  |
-|  |  - Pause / Resume / Takeover          |  - Browser IPC Handler    |  |
-|  +---------------------------+           +-------------+-------------+  |
-+--------------------------------------------------------|----------------+
-                                                         |
-                                                         v
-                                           +-------------+-------------+
-                                           |        AGENT LAYER        |
-                                           |  - AgentSession Loop      |
-                                           |  - AgentPlanner           |
-                                           |  - FormVerifier           |
-                                           |  - ToolExecutor           |
-                                           |  - Claude LLM Client      |
-                                           +-------------+-------------+
-                                                         |
-                         +-------------------------------+-------------------------------+
-                         |                               |                               |
-                         v                               v                               v
-           +-------------+-------------+   +-------------+-------------+   +-------------+-------------+
-           |      DOCUMENT TOOLS       |   |       BROWSER TOOLS       |   |        USER TOOLS         |
-           |  - read_document          |   |  - read_form              |   |  - ask_user               |
-           |  - extract_document_fields|   |  - fill_text              |   |  - request_takeover       |
-           +-------------+-------------+   |  - select_option          |   |  - task_complete          |
-                         |                 |  - set_checkbox           |   +-------------+-------------+
-                         |                 |  - verify_field           |                 |
-                         v                 +-------------+-------------+                 v
-           +-------------+-------------+                 |                 +-------------+-------------+
-           |      DOCUMENT LAYER       |                 v                 |     USER COLLABORATION    |
-           |  - Extractor Coordinator  |   +-------------+-------------+   |  - Blocking Clarification |
-           |  - Normalizer (Canonical) |   |       BROWSER LAYER       |   |  - Pause / Resume         |
-           |  - PDF / DOCX / XLSX      |   |  - Playwright Controller  |   |  - Human Takeover         |
-           +---------------------------+   |  - Injected DOM Inspector |   +---------------------------+
-                                           |  - Form Field Detector    |
-                                           |  - Semantic Field Mapper  |
-                                           |  - Live Field Verifier    |
-                                           +---------------------------+
++---------------------------------------------------------------------------------+
+|                               ELECTRON DESKTOP APP                              |
+|                                                                                 |
+|   +---------------------------------------+    +-----------------------------+  |
+|   |          REACT 19 + VITE UI           |    |     ELECTRON MAIN PROCESS   |  |
+|   |  - Document Selector & Field Viewer   |IPC |  - App Lifecycle            |  |
+|   |  - Target Form URL & Mode Selector    |<==>|  - Window Manager           |  |
+|   |  - Live Activity Stream & Verification|    |  - Preload Context Bridge   |  |
+|   |  - Pause / Resume / Takeover / Clarify|    |  - IPC Bridge Handlers      |  |
+|   +---------------------------------------+    +--------------+--------------+  |
++---------------------------------------------------------------|-----------------+
+                                                                | (WebSocket / IPC)
+                                                                v
++---------------------------------------------------------------------------------+
+|                          PYTHON FASTAPI & PLAYWRIGHT CORE                       |
+|                                                                                 |
+|   +-------------------+      +-------------------+      +-------------------+   |
+|   |  DOCUMENT LAYER   |      |   AGENT ENGINE    |      |   POLICY ENGINE   |   |
+|   |  - DOCX Parser    |      |  - AgentSession   |      |  - Submit Blocker |   |
+|   |  - XLSX Parser    |=====>|  - AgentPlanner   |=====>|  - Consent Filter |   |
+|   |  - PDF Parser     |      |  - ToolExecutor   |      |  - State Guard    |   |
+|   |  - Normalizer     |      |  - Claude Client  |      +---------+---------+   |
+|   +-------------------+      +-------------------+                |             |
+|                                                                   v             |
+|   +-------------------------------------------------------------------------+   |
+|   |                           BROWSER AUTOMATION LAYER                      |   |
+|   |  - Playwright Async Chromium Session (Visible Browser Window)           |   |
+|   |  - Injected DOM Inspector (Set-of-Marks Numbered Badging)               |   |
+|   |  - Semantic Field Mapper & Synonym Matcher (with Roman Numeral Support)  |   |
+|   |  - Action Executors (fill, select, radio, checkbox, file, navigation)  |   |
+|   |  - Live DOM Verifier (DOM-read comparison post-action)                  |   |
+|   +-------------------------------------------------------------------------+   |
++---------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 4. Phase 1 Execution Workflow
+## 4. Phase-1 & Phase-2 Feature Matrix
 
-```
-[ Upload Document ]
-        |
-        v
-[ Parse & Normalize Fields ] (PDF, DOCX, XLSX -> student, parent, address)
-        |
-        v
-[ Launch Visible Chromium ] (Playwright)
-        |
-        v
-[ Navigate to Form URL ]
-        |
-        v
-[ Inspect & Number Form Elements ] (Set-of-marks approach)
-        |
-        v
-[ Semantically Match & Fill Fields ] (Text, Select, Checkbox)
-        |
-        v
-[ Verify Values Post-Fill ] (Re-reads page DOM & compares)
-        |
-   +----+----+
-   | Ambiguity?
-   +----+----+
-   /         \
- [YES]       [NO]
-  |            |
-[Ask User]     |
-  |            |
-  +------>-----+
-        |
-        v
-[ Form Filled & Verified ]
-        |
-        v
-[ STOP -> Ready for Human Review ]  <--- (PHASE 1 TERMINATION)
-        |
-    (NEVER SUBMIT)
-```
+| Capability | Phase 1 (Baseline) | Phase 2 (Advanced Automation) | Status |
+| :--- | :--- | :--- | :--- |
+| **Document Formats** | PDF, DOCX, XLSX | Heterogeneous schemas, dynamic tables, date variations | **Complete** |
+| **Form Perception** | Visible text, selects, checkboxes | Set-of-Marks DOM badges, radio groups, file inputs, wizard steps | **Complete** |
+| **Multi-Step Forms** | Single-page forms | Automated wizard progression via `click_navigation` (`NAVIGATION_NEXT`) | **Complete** |
+| **Dynamic Fields** | Static forms | Dynamic dependent field discovery (`DYNAMIC_FIELD_DETECTED`) | **Complete** |
+| **Radio Buttons** | Basic checkboxes | Semantic radio group selection with exact & whole-word matching | **Complete** |
+| **Checkboxes & Consent** | Unfiltered checkboxes | Automatic separation: standard inputs filled, consent/legal boxes blocked | **Complete** |
+| **File Uploads** | Out of scope | Native Playwright file attachment via `upload_file` | **Complete** |
+| **Field Verification** | DOM re-read verification | Value normalization (dates, phone numbers, Roman numerals) | **Complete** |
+| **Error Recovery** | Immediate fail on mismatch | Bounded single-attempt recovery (`clear_field` -> re-fill -> re-verify) | **Complete** |
+| **Human Collaboration** | Pause, resume, clarify | Full Human Takeover (`hand_over_to_user` -> browser control -> `give_back`) | **Complete** |
+| **Submission Safety** | Submit tool omitted | Multi-layer defense: Policy Engine, DOM keyword regex, zero-submit invariant | **Guaranteed** |
+| **Terminal State** | `READY_FOR_REVIEW` | `READY_FOR_REVIEW` (Browser remains open for user review and submission) | **Guaranteed** |
 
 ---
 
-## 5. Folder Structure
+## 5. Absolute Invariant: Submission Safety
+
+> [!IMPORTANT]
+> **THE AGENT MUST NEVER SUBMIT A FORM.**
+> **`READY_FOR_REVIEW` is the terminal success state and the agent cannot submit forms.**
+
+Submission safety is enforced through multiple redundant layers:
+1. **Tool Registry**: No `submit_form` or submission tool is registered in the tool definitions.
+2. **Policy Engine**: Evaluates every planned action against state and element classifications. Any action targeting a control classified as `SUBMISSION` is immediately blocked.
+3. **Regex Keyword Filter**: Scans element text, labels, IDs, names, and ARIA attributes for over 40 submit-intent variations:
+   ```regex
+   submit|apply|finalize|confirm|pay|place order|send application|
+   complete registration|finish application|register now|file now|
+   make payment|complete purchase|checkout
+   ```
+4. **Action-Level DOM Verification**: `click_element` inspects the live DOM element attributes before dispatching a click. If the target is an input/button of `type="submit"` or contains submission keywords, a `SafetyViolationError` is raised.
+5. **Form Submission Interception**: Injected browser scripts intercept `form.submit()` and button click events to prevent default submission.
+6. **Open Browser at Terminal State**: Upon completing all available steps and fields, the agent transitions to `READY_FOR_REVIEW`, produces a human-readable summary, and leaves the visible Chromium browser open for manual user inspection and manual submission.
+
+---
+
+## 6. Test Fixture Matrix
+
+The repository contains 12 dedicated HTML fixtures in `tests/fixtures/` exercising every real-world form condition:
+
+| Fixture File | Scenario Tested | Key Verification Criterion |
+| :--- | :--- | :--- |
+| `01-basic-form.html` | Standard text, date, and dropdown fields | All fields filled and verified via DOM inspection |
+| `02-label-variants.html` | Diverse label synonyms (e.g. "Candidate Name", "D.O.B.") | Semantic mapper correctly resolves aliases to canonical fields |
+| `03-missing-field.html` | Document missing expected fields (e.g. mother name) | Missing fields safely skipped; no placeholder hallucination |
+| `04-ambiguous-address.html` | Conflicting addresses (Permanent vs Correspondence) | Triggers `ASK_USER`; rejects invalid answers, proceeds when clarified |
+| `05-multi-step.html` | 3-step admission wizard with "Next Step" buttons | Traverses Steps 1, 2, and 3; fills each step, stops before final submit |
+| `06-dynamic-fields.html` | Dependent fields appearing upon parent selection | Emits `DYNAMIC_FIELD_DETECTED`; dynamically maps and fills new fields |
+| `07-radio-form.html` | Mutually exclusive radio button groups | Selects appropriate radio button (Female) without substring bugs |
+| `08-checkbox-form.html` | Standard options vs legal/consent checkboxes | Transports option filled; declaration checkbox strictly un-checked |
+| `09-file-upload.html` | Document and photo file input controls | `upload_file` attaches document path; DOM verifies file attachment |
+| `10-submission-attempt.html` | Adversarial form with multiple deceptive submit buttons | Policy Engine and detector block every submit attempt |
+| `11-human-takeover.html` | CAPTCHA / security challenge requiring user intervention | Agent enters `HUMAN_TAKEOVER`, yields browser, resumes upon give-back |
+| `12-verification-failure.html` | Field validation error (e.g., read-only or script-altered input) | Executes bounded recovery; reports verification mismatch gracefully |
+
+---
+
+## 7. Project Structure
 
 ```
 form-filling-agent/
+|-- backend/                       # Python FastAPI + Playwright backend
+|   |-- app/
+|   |   |-- agent/                 # Agent session, planner, and executor
+|   |   |   |-- session.py         # Main execution loop & lifecycle state machine
+|   |   |   |-- planner.py         # Fill plan generator with radio & file intelligence
+|   |   |   |-- executor.py        # Action dispatcher
+|   |   |   `-- prompt.py          # Strict safety system prompts
+|   |   |-- browser/               # Browser automation & DOM perception
+|   |   |   |-- browser.py         # Playwright Chromium manager
+|   |   |   |-- inspector.py       # Injected set-of-marks & visibility script
+|   |   |   |-- detector.py        # Control classifier & submission keyword filter
+|   |   |   |-- mapper.py          # Semantic label mapper & Roman numeral normalizer
+|   |   |   |-- actions.py         # Primitives: fill, select, radio, checkbox, file, click
+|   |   |   `-- verifier.py        # Post-fill live DOM verifier
+|   |   |-- document/              # Document extraction pipeline
+|   |   |   |-- extractor.py       # Document processing pipeline
+|   |   |   |-- normalizer.py      # Canonical schema normalizer
+|   |   |   `-- parsers/           # DOCX, XLSX, and PDF parsers
+|   |   |-- policy/                # Invariant & safety enforcement
+|   |   |   `-- engine.py          # PolicyEngine blocking submits and unpermitted tools
+|   |   |-- registry/              # Permitted tool registry
+|   |   |   `-- definitions.py     # Anthropic tool schemas (no submit_form)
+|   |   |-- schemas/               # Pydantic data models
+|   |   `-- config.py              # Centralized environment configuration
+|   `-- tests/                     # 38 pytest test suites
 |
-|-- electron/
-|   |-- main.js                      # Application lifecycle & bootstrap
-|   |-- preload.js                   # Secure contextBridge API for renderer
-|   |-- ipc/
-|   |   |-- agent.ipc.js             # Agent lifecycle IPC (start, pause, resume, takeover, answer)
-|   |   |-- document.ipc.js          # Document picker & parsing IPC
-|   |   `-- browser.ipc.js           # Browser state & snapshot IPC
-|   `-- services/
-|       `-- window.service.js        # BrowserWindow manager & renderer event forwarder
+|-- electron/                      # Electron desktop shell
+|   |-- main.js                    # Application lifecycle & window creation
+|   |-- preload.js                 # Context-isolated secure IPC bridge
+|   `-- ipc/                       # Modular IPC handlers
 |
-|-- src/
-|   |-- ui/
-|   |   |-- index.html               # Semantic UI markup
-|   |   |-- app.js                   # UI coordinator & bootstrap
-|   |   |-- styles.css               # Clean dark-mode CSS styles
-|   |   |-- components/
-|   |   |   |-- document-upload.js   # Document picker & extracted fields view
-|   |   |   |-- task-input.js        # Target URL & instruction form controls
-|   |   |   |-- agent-status.js      # Status badge & execution state indicator
-|   |   |   |-- activity-log.js      # Real-time event log with timestamps & icons
-|   |   |   `-- controls.js          # Pause/Resume, Takeover/Give-back, and Ask-User dialog
-|   |   `-- state/
-|   |       `-- task-state.js        # Reactive UI state store
-|   |
-|   |-- agent/
-|   |   |-- agent.js                 # AgentSession orchestrator loop
-|   |   |-- planner.js               # Decides next logical action
-|   |   |-- executor.js              # Dispatches tool execution to underlying layers
-|   |   |-- verifier.js              # Agent-level verification logic
-|   |   |-- llm-client.js            # Anthropic client singleton
-|   |   |-- tools/
-|   |   |   |-- document.tools.js    # Document inspection tools
-|   |   |   |-- browser.tools.js     # Page inspection tools
-|   |   |   |-- form.tools.js        # Form interaction tools (fill, select, check, verify)
-|   |   |   |-- user.tools.js        # User collaboration tools (ask_user, task_complete)
-|   |   |   `-- index.js             # Aggregated toolset exporter
-|   |   |-- prompts/
-|   |   |   |-- system.prompt.js     # System instructions and boundaries
-|   |   |   `-- form-filling.prompt.js # Form filling task prompt formatter
-|   |   `-- schemas/
-|   |       |-- agent.schema.js      # Action & session data schemas
-|   |       |-- document.schema.js   # Normalized document schemas (student, parent, address)
-|   |       `-- form.schema.js       # Detected form element schemas
-|   |
-|   |-- document/
-|   |   |-- extractor.js             # Extractor orchestrator (file reading + LLM extraction)
-|   |   |-- normalizer.js            # Normalizes fields into canonical schema
-|   |   `-- parsers/
-|   |       |-- pdf.parser.js        # PDF parser (pdf-parse)
-|   |       |-- docx.parser.js       # DOCX parser (mammoth)
-|   |       `-- xlsx.parser.js       # XLSX/XLS parser (xlsx)
-|   |
-|   |-- browser/
-|   |   |-- browser.js               # Playwright browser, context & page lifecycle
-|   |   |-- page-inspector.js        # Injected DOM script (set-of-marks extraction)
-|   |   |-- form-detector.js         # Form element classification & metadata extractor
-|   |   |-- field-mapper.js          # Semantic mapping between document & form fields
-|   |   |-- actions.js               # Playwright action primitives (fill, select, check, click)
-|   |   `-- verifier.js              # Post-fill verification (re-reads & compares values)
-|   |
-|   `-- shared/
-|       |-- types.js                 # JSDoc type definitions
-|       |-- constants.js             # Shared system constants & limits
-|       |-- events.js                # Canonical event names for IPC & agent
-|       `-- errors.js                # Custom error hierarchy
+|-- src/                           # Frontend UI & JavaScript baseline
+|   |-- renderer/                  # React 19 + TypeScript desktop UI
+|   |   |-- src/
+|   |   |   |-- App.tsx            # Main application coordinator
+|   |   |   |-- types.ts           # Frontend TypeScript interfaces
+|   |   |   `-- index.css          # Design system & dark mode styles
+|   |   `-- index.html
+|   `-- browser/                   # Shared browser inspection scripts
 |
 |-- tests/
-|   |-- document/
-|   |   `-- document.test.js         # Document parser & normalization tests
-|   |-- agent/
-|   |   `-- agent.test.js            # Tool definitions, schemas, no-submit safety tests
-|   |-- browser/
-|   |   `-- browser.test.js          # Control classifier, mapper, verifier tests
-|   |-- integration/
-|   |   `-- workflow.test.js         # End-to-end AgentSession lifecycle tests
-|   `-- run-all.js                   # Test runner using Node.js built-in test runner
+|   |-- fixtures/                  # 12 HTML form fixtures & sample documents
+|   `-- run-all.js                 # Node.js baseline test runner (25 tests)
 |
-|-- assets/
-|   `-- icons/
-|       `-- README.md                # Icons placeholder
-|-- .env.example                     # Environment template
-|-- .gitignore                       # Git ignore configuration
-|-- LICENSE                          # MIT License
-|-- package.json                     # Project manifest & scripts
-`-- README.md                        # Documentation
+|-- .env.example                   # Environment configuration template
+|-- package.json                   # Project dependencies & build scripts
+|-- tsconfig.json                  # TypeScript compiler configuration
+|-- vite.config.ts                 # Vite bundler configuration
+`-- README.md                      # Comprehensive documentation
 ```
-
----
-
-## 6. Detailed Layer Explanations
-
-### Electron Main (`electron/main.js`, `electron/services/`, `electron/ipc/`)
-- Runs in privileged Node.js environment.
-- Initializes application lifecycle, creates `BrowserWindow` via `WindowService`, and registers modular IPC handlers (`agent.ipc.js`, `document.ipc.js`, `browser.ipc.js`).
-- Contains **no AI agent logic** or business rules.
-
-### Electron Preload (`electron/preload.js`)
-- Runs with `contextIsolation: true` and `nodeIntegration: false`.
-- Exposes only safe, white-listed functions to the renderer window via `contextBridge`:
-  - `window.agentAPI.pickAndParseDocument()`
-  - `window.agentAPI.startAgent(payload)`
-  - `window.agentAPI.pauseAgent()`
-  - `window.agentAPI.resumeAgent()`
-  - `window.agentAPI.takeOver()`
-  - `window.agentAPI.giveBack()`
-  - `window.agentAPI.answerPrompt(promptId, answer)`
-  - `window.agentAPI.onAgentEvent(callback)`
-
-### UI Layer (`src/ui/`)
-- Standard Vanilla HTML, CSS, and modular JS components.
-- Completely decoupled from Playwright and Node.js.
-- Communicates exclusively through the preload bridge (`window.agentAPI` / `window.eigiAgent`).
-- Maintains reactive local state via `task-state.js`.
-
-### Agent Layer (`src/agent/`)
-- The cognitive core.
-- Drives the tool-use loop with Claude:
-  1. Calls `read_form` to perceive the form.
-  2. Selects actions based on the document data and user instruction.
-  3. Executes actions through `ToolExecutor`.
-  4. Verifies actions through `FormVerifier`.
-  5. Asks the human user when clarification is needed through `ask_user`.
-  6. Concludes with `task_complete` summary.
-
-### Tools Layer (`src/agent/tools/`)
-- Explicit tool declarations following the Anthropic Tool-Use standard.
-- Split into:
-  - `document.tools.js`: `read_document`, `extract_document_fields`
-  - `browser.tools.js`: `read_form`, `get_page_snapshot`, `click`
-  - `form.tools.js`: `fill_text`, `select_option`, `set_checkbox`, `read_field`, `verify_field`
-  - `user.tools.js`: `ask_user`, `request_takeover`, `task_complete`
-- **Safety Guarantee**: There is NO `submit_form` tool.
-
-### Document Layer (`src/document/`)
-- Handles file I/O and format-specific extraction:
-  - PDF via `pdf-parse`
-  - DOCX via `mammoth`
-  - XLSX/XLS via `xlsx`
-- Standardizes diverse source documents into a canonical schema:
-  ```json
-  {
-    "student": { "fullName": "...", "dateOfBirth": "...", "gender": "..." },
-    "parent": { "fatherName": "...", "motherName": "...", "contactNumber": "..." },
-    "address": { "street": "...", "city": "...", "state": "...", "pincode": "..." }
-  }
-  ```
-
-### Browser Layer (`src/browser/`)
-- Encapsulates Playwright.
-- Injects `COLLECT_ELEMENTS_SCRIPT` into the page to build a numbered snapshot (`window.__agentElements`) using a set-of-marks technique.
-- Classifies controls (`form-detector.js`), scores semantic matches (`field-mapper.js`), executes input actions (`actions.js`), and verifies DOM values (`verifier.js`).
-
----
-
-## 7. Scope & Boundaries (Phase 1)
-
-### Included in Phase 1:
-- Visible Chromium window launch (`headless: false`).
-- Parsing PDF, DOCX, and XLSX documents.
-- Semantic field matching and filling of text inputs, textareas, dropdown selects, and checkboxes/radios.
-- Value verification after every fill operation.
-- Real-time event streaming to the desktop UI.
-- Interactive user clarification for missing or conflicting document data.
-- Interactive user clarification for missing or conflicting document data.
-- Live pause, resume, and human takeover/give-back controls.
-- Safe termination state: `"Form filled, verified, and ready for human review."`
-- Hybrid execution: Claude LLM mode when API key is provided, or deterministic dry-run mode for local offline validation.
-
-### Explicitly Excluded from Phase 1:
-- **No Form Submission**: The agent must never click "Submit", "Apply", or finalize payment. Any attempt to click a submit-intent button throws `SafetyViolationError`.
-- **No Unrelated Navigation**: The agent cannot browse arbitrary websites.
-- **No Arbitrary System Control**: The agent cannot execute shell commands or access arbitrary files.
 
 ---
 
 ## 8. Installation & Setup
 
 ### Prerequisites
-- Node.js (v18 or higher recommended; v20+ automatically loads `.env`)
-- Chromium browser dependencies (installed automatically via Playwright postinstall)
-- Anthropic Claude API Key (optional for deterministic dry-run mode; required for LLM reasoning)
+- **Node.js**: v18.0.0 or higher
+- **Python**: v3.10 or higher
+- **Chromium**: Managed automatically by Playwright
 
-### Step 1: Install Dependencies
+### Step 1: Install Node Dependencies
 ```bash
 npm install
 ```
-*(The postinstall script automatically installs Playwright's Chromium binary.)*
 
-### Step 2: Configure Environment (Optional for dry run)
-Create a `.env` file in the project root:
+### Step 2: Set Up Python Virtual Environment
+```bash
+python -m venv .venv
+
+# On Windows:
+.\.venv\Scripts\activate
+
+# On macOS/Linux:
+source .venv/bin/activate
+
+pip install -r backend/requirements.txt
+playwright install chromium
+```
+
+### Step 3: Environment Configuration
+Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Add your API key:
-```env
-ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
-```
-*(When present, `.env` is loaded automatically by Electron without third-party dependencies.)*
+*(Optional: Provide `ANTHROPIC_API_KEY` for Claude-driven execution. If omitted, the agent operates in deterministic offline dry-run mode).*
 
 ---
 
-## 9. Running the Application
+## 9. Development & Verification Workflows
 
-To launch the desktop application:
+### 1. Run Complete Test Suites
+
+Execute both test suites to verify full Phase-1 and Phase-2 compliance:
+
 ```bash
-npm start
-# or
-npm run dev
-```
+# Run 38 Python backend tests (Policy Engine, Agent, Browser, Document, Multi-step, Radios)
+.\.venv\Scripts\pytest backend/tests -v
 
-### End-to-End Fixture Dry Run (Zero-Config Test)
-You can test the entire document extraction, browser navigation, field mapping, filling, and verification pipeline without an API key using the included test fixtures:
-
-1. Launch the app: `npm start`
-2. Click **"Choose Document..."** and select:
-   `tests/fixtures/sample-admission-record.docx`
-3. In **Target Form URL**, enter the local file URL for the sample form:
-   `file:///D:/CODER%20HI%20KEHDE/Projects/form-filling-agent/tests/fixtures/sample-registration-form.html`
-   *(or copy the file's path into your browser to get the exact file:// URL)*
-4. Keep the instruction: `Read this document and fill the student registration form.`
-5. Ensure **"Deterministic Dry Run"** is checked (if running without an API key).
-6. Click **"Start Form-Filling Agent"**.
-7. Watch the visible Chromium window open, inspect the form, fill each field, verify every value, leave the unmapped hostel checkbox untouched, ignore the submit button, and reach **READY FOR REVIEW**.
-
----
-
-## 10. Running Tests & Architecture Validation
-
-The repository includes dual test suites validating both the Electron/JS baseline and the Python FastAPI backend:
-
-### 1. JavaScript Baseline Tests (25 Tests)
-```bash
+# Run 25 JavaScript baseline tests
 npm test
 ```
-- **Document Suite** (`tests/document/document.test.js`): PDF/DOCX/XLSX parsing, canonical normalization, date normalization, ambiguity warnings, schema validation.
-- **Agent Suite** (`tests/agent/agent.test.js`): Tool definitions, system prompt rules, action schema validation, strict `submit_form` omission invariant.
-- **Browser Suite** (`tests/browser/browser.test.js`): Control classifier, filter fillable fields, semantic field mapper scoring and synonyms, FormVerifier tracking.
-- **Browser Actions Suite** (`tests/browser/actions.test.js`): Playwright text filling, clearField, selectOption (case-insensitive & label/value), setCheckbox, verifyField with date/whitespace normalization, and strict `SafetyViolationError` when clicking submit buttons.
-- **Agent Integration Suite** (`tests/integration/workflow.test.js`): `AgentSession` lifecycle test with mock LLM (pause/resume, takeover, ask_user round-trip, completion).
-- **Fixture Dry-Run Integration Suite** (`tests/integration/fixture-dryrun.test.js`): Full end-to-end integration test reading `sample-admission-record.docx` and filling `sample-registration-form.html` in a real browser session.
 
-### 2. Python FastAPI Backend Tests (28 Tests)
+### 2. Verify TypeScript Compilation & UI Build
 ```bash
-npm run test:backend
-# or: .\.venv\Scripts\pytest backend/tests
-```
-- **Document Suite** (`backend/tests/document/test_document.py`): Word docx parser, PDF parser, Excel parser, canonical schema validator.
-- **Browser Suite** (`backend/tests/browser/test_browser.py`, `backend/tests/browser/test_actions.py`): Form element detector, Playwright action execution, live element verifier.
-- **Tools & Policy Engine** (`backend/tests/registry/test_tools.py`, `backend/tests/policy/test_policy.py`, `backend/tests/policy/test_final_safety.py`): ToolRegistry verification, PolicyEngine state machine, invariant enforcement rejecting submit-intent elements (`SafetyViolationError`).
-- **Agent & Workflow** (`backend/tests/agent/test_agent.py`, `backend/tests/integration/test_workflow.py`, `backend/tests/integration/test_fixture_dryrun.py`): Agent planner, executor, interactive ask_user round-trip, full fixture dry run.
-- **FastAPI Endpoints** (`backend/tests/api/test_api.py`): `/health`, `/documents/parse`, `/sessions` lifecycle.
+# TypeScript strict typecheck
+npx tsc --noEmit
 
-### 3. Frontend Build
-```bash
+# Compile production React UI bundle with Vite
 npm run build:ui
 ```
-Compiles the React + TypeScript frontend into `dist/` using Vite. Electron automatically serves the compiled bundle.
+
+### 3. Launch Desktop Application
+```bash
+npm run dev
+# or
+npm start
+```
 
 ---
 
-## 11. Known Limitations & Future Work (Phase 2)
-- Multi-page wizard forms with conditional branching are planned for Phase 2.
-- CAPTCHAs require human takeover (supported via the "Take Over Browser" button).
-- File uploads directly into target web forms are out of Phase-1 scope.
+## 10. Packaging & Distribution Status
+
+- **Development Mode**: Fast iteration using Vite HMR and local Python virtual environment (`.venv`).
+- **Production Distribution**: When packaging the desktop app using `electron-builder`, the Python FastAPI backend can be bundled as a frozen standalone executable sidecar using PyInstaller:
+  ```bash
+  pyinstaller --onefile --name form-agent-backend backend/app/main.py
+  ```
+  The Electron main process detects packaged mode and spawns the bundled binary without requiring a host Python installation.
 
 ---
 
-## 12. License
+## 11. License
 
 MIT License. See [LICENSE](LICENSE) for details.

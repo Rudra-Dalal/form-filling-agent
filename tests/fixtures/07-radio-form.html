@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>07 Radio Button Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #1e293b; }
+    fieldset { border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    .radio-group { margin: 10px 0; display: flex; gap: 16px; }
+    .radio-option { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+    label { display: block; margin-top: 10px; font-size: 13px; font-weight: 500; }
+    input[type="text"] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>07 Radio Form</h1>
+  <form id="radio-form">
+    <fieldset>
+      <legend>Student Profile</legend>
+      <label for="student-name">Student Full Name</label>
+      <input type="text" id="student-name" name="fullName" />
+
+      <label>Gender</label>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" id="gender-male" name="gender" value="male" /> Male
+        </label>
+        <label class="radio-option">
+          <input type="radio" id="gender-female" name="gender" value="female" /> Female
+        </label>
+        <label class="radio-option">
+          <input type="radio" id="gender-other" name="gender" value="other" /> Other
+        </label>
+      </div>
+
+      <label>Category</label>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" id="cat-dayscholar" name="category" value="dayscholar" checked /> Day Scholar
+        </label>
+        <label class="radio-option">
+          <input type="radio" id="cat-hosteler" name="category" value="hosteler" /> Hosteler
+        </label>
+      </div>
+    </fieldset>
+
+    <button type="submit" id="submit-btn" onclick="window.__submitted = true; return false;">
+      Confirm Details
+    </button>
+  </form>
+</body>
+</html>

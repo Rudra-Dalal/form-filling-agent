@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from typing import Any, Optional
 from playwright.async_api import Page, ElementHandle
 
@@ -97,10 +98,52 @@ async def set_checkbox(page: Page, element_index: int, should_be_checked: bool) 
     if is_checked != should_be_checked:
         await handle.click()
 
+async def set_radio(page: Page, element_index: int) -> None:
+    await highlight_element(page, element_index)
+    handle = await get_element_handle(page, element_index)
+    await handle.check()
+
+async def upload_file(page: Page, element_index: int, file_path: str) -> None:
+    path = Path(file_path)
+    if not path.exists():
+        raise BrowserActionError(f"Upload file not found: {file_path}")
+
+    await highlight_element(page, element_index)
+    handle = await get_element_handle(page, element_index)
+
+    # Validate input is type="file"
+    input_type = await handle.get_attribute("type")
+    if input_type != "file":
+        raise BrowserActionError(f"Target element {element_index} is not an input[type='file'].")
+
+    # Validate accept attribute if defined
+    accept = await handle.get_attribute("accept")
+    if accept:
+        allowed = [ext.strip().lower() for ext in accept.split(",")]
+        file_ext = path.suffix.lower()
+        if not any(file_ext == a or a.endswith(file_ext) or a == "*/*" for a in allowed):
+            raise BrowserActionError(
+                f"File {path.name} with extension {file_ext} does not match accepted types: {accept}"
+            )
+
+    await handle.set_input_files(str(path.resolve()))
+
+    # Verify attachment in DOM
+    attached_count = await page.evaluate("""
+    idx => {
+        const node = window.__agentElements && window.__agentElements[idx];
+        return node && node.files ? node.files.length : 0;
+    }
+    """, element_index)
+
+    if attached_count == 0:
+        raise BrowserActionError(f"File attachment verification failed for {file_path}")
+
 async def click_element(page: Page, element_index: int) -> None:
     """
     Clicks an interactive element.
-    CRITICAL INVARIANT: Blocks submission attempts and raises SafetyViolationError.
+    CRITICAL INVARIANT: Blocks submission attempts semantically and raises SafetyViolationError.
+    Checks type, text, name, id, and aria attributes across buttons and links.
     """
     if not page:
         raise BrowserActionError("Page instance is not available.")
@@ -113,11 +156,17 @@ async def click_element(page: Page, element_index: int) -> None:
         const text = (node.innerText || node.value || node.getAttribute('aria-label') || '').toLowerCase();
         const name = (node.name || '').toLowerCase();
         const id = (node.id || '').toLowerCase();
+        const className = (node.className || '').toLowerCase();
 
         if (type === 'submit') return true;
 
-        const submitKeywords = /submit|apply now|register now|complete application|send registration/i;
-        if (submitKeywords.test(text) || submitKeywords.test(name) || submitKeywords.test(id)) {
+        const submitKeywords = /\\b(submit|apply|finalize|confirm|pay|place\\s*order|send\\s*application|complete\\s*registration|finish\\s*application|register\\s*now|complete\\s*application|send\\s*registration|proceed\\s*to\\s*pay|proceed\\s*to\\s*checkout|checkout)\\b/i;
+        if (
+            submitKeywords.test(text) ||
+            submitKeywords.test(name) ||
+            submitKeywords.test(id) ||
+            submitKeywords.test(className)
+        ) {
             return true;
         }
         return false;
@@ -133,3 +182,7 @@ async def click_element(page: Page, element_index: int) -> None:
     await highlight_element(page, element_index)
     handle = await get_element_handle(page, element_index)
     await handle.click()
+
+async def click_navigation(page: Page, element_index: int) -> None:
+    """Safely clicks a form navigation control (e.g. Next / Back step)."""
+    await click_element(page, element_index)

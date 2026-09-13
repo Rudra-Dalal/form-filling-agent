@@ -7,12 +7,17 @@ PROJECT_ROOT = BACKEND_DIR.parent
 FIXTURES_DIR = PROJECT_ROOT / "tests" / "fixtures"
 
 # Server Settings
-HOST = os.getenv("HOST", "127.0.0.1")
-PORT = int(os.getenv("PORT", "8000"))
+HOST = os.getenv("BACKEND_HOST") or os.getenv("HOST", "127.0.0.1")
+PORT = int(os.getenv("BACKEND_PORT") or os.getenv("PORT", "8000"))
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Playwright Browser Settings
-# Absolute requirement: HEADLESS = False so the user can observe the browser
 HEADLESS = os.getenv("HEADLESS", "false").lower() in ("true", "1", "yes")
+
+# Agent Execution Settings
+AGENT_MAX_ITERATIONS = int(os.getenv("AGENT_MAX_ITERATIONS", "35"))
+AGENT_ACTION_TIMEOUT = int(os.getenv("AGENT_ACTION_TIMEOUT", "30000"))
+AGENT_MAX_RETRIES = int(os.getenv("AGENT_MAX_RETRIES", "3"))
 
 # LLM Configuration
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

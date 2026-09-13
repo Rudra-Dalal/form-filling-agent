@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>06 Dynamic Fields Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; color: #1e293b; }
+    fieldset { border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    label { display: block; margin-top: 10px; font-size: 13px; font-weight: 500; }
+    input[type="text"], select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    .hidden-conditional { display: none; margin-top: 14px; padding: 12px; border-left: 3px solid #3b82f6; background: #eff6ff; }
+    .hidden-conditional.visible { display: block; }
+    button { padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>06 Dynamic Conditional Fields Form</h1>
+
+  <form id="dynamic-form">
+    <fieldset>
+      <legend>Student Base Profile</legend>
+      <label for="student-name">Student Full Name</label>
+      <input type="text" id="student-name" name="fullName" />
+
+      <label for="grade">Grade</label>
+      <select id="grade" name="grade" onchange="handleGradeChange(this.value)">
+        <option value="">-- Select Grade --</option>
+        <option value="6">Grade 6</option>
+        <option value="7">Grade 7</option>
+        <option value="8">Grade 8</option>
+        <option value="9">Grade 9</option>
+      </select>
+
+      <!-- Conditionally appears when Grade is 8 or higher -->
+      <div id="senior-options" class="hidden-conditional">
+        <label for="elective-stream">Elective Stream</label>
+        <select id="elective-stream" name="electiveStream">
+          <option value="">-- Choose Stream --</option>
+          <option value="Science">Science & Robotics</option>
+          <option value="Arts">Humanities & Arts</option>
+        </select>
+      </div>
+
+      <label for="need-hostel" style="margin-top: 14px;">
+        <input type="checkbox" id="need-hostel" name="needHostel" onchange="toggleHostel(this.checked)" />
+        Require Hostel Accommodation
+      </label>
+
+      <!-- Conditionally appears when checkbox is checked -->
+      <div id="hostel-details" class="hidden-conditional">
+        <label for="room-preference">Room Preference</label>
+        <select id="room-preference" name="roomPreference">
+          <option value="2-sharing">2-Sharing Deluxe</option>
+          <option value="4-sharing">4-Sharing Standard</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <button type="submit" id="submit-btn" onclick="window.__submitted = true; return false;">
+      Submit Form
+    </button>
+  </form>
+
+  <script>
+    function handleGradeChange(val) {
+      const seniorDiv = document.getElementById('senior-options');
+      if (parseInt(val, 10) >= 8) {
+        seniorDiv.classList.add('visible');
+      } else {
+        seniorDiv.classList.remove('visible');
+      }
+    }
+
+    function toggleHostel(checked) {
+      const hostelDiv = document.getElementById('hostel-details');
+      if (checked) {
+        hostelDiv.classList.add('visible');
+      } else {
+        hostelDiv.classList.remove('visible');
+      }
+    }
+  </script>
+</body>
+</html>

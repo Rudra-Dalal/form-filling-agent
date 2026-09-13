@@ -38,7 +38,7 @@ TOOL_DEFINITIONS: List[ToolDefinition] = [
     ),
     ToolDefinition(
         name="select_option",
-        description="Selects an option from a <select> dropdown by its visible label text.",
+        description="Selects an option from a <select> dropdown by its visible label text or value.",
         input_schema={
             "type": "object",
             "properties": {
@@ -51,16 +51,42 @@ TOOL_DEFINITIONS: List[ToolDefinition] = [
     ),
     ToolDefinition(
         name="set_checkbox",
-        description="Sets the checked state of a checkbox identified by its element index.",
+        description="Sets the checked state of a data-backed checkbox. Automated checking of consent/terms boxes is prohibited.",
         input_schema={
             "type": "object",
             "properties": {
                 "elementIndex": {"type": "integer", "description": "The numeric index of the checkbox."},
                 "checked": {"type": "boolean", "description": "True to check, False to uncheck."},
+                "userAuthorized": {"type": "boolean", "description": "Whether user explicitly authorized checking a consent box."},
             },
             "required": ["elementIndex", "checked"],
         },
         safety_classification="interactive",
+    ),
+    ToolDefinition(
+        name="set_radio",
+        description="Selects a radio button option within a radio group by its element index.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "elementIndex": {"type": "integer", "description": "The numeric index of the radio button."},
+            },
+            "required": ["elementIndex"],
+        },
+        safety_classification="interactive",
+    ),
+    ToolDefinition(
+        name="upload_file",
+        description="Attaches a permitted local file to an input[type='file'] element. Never submits form.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "elementIndex": {"type": "integer", "description": "The numeric index of the file input element."},
+                "filePath": {"type": "string", "description": "Absolute path to the local file to attach."},
+            },
+            "required": ["elementIndex", "filePath"],
+        },
+        safety_classification="restricted",
     ),
     ToolDefinition(
         name="verify_field",
@@ -84,6 +110,19 @@ TOOL_DEFINITIONS: List[ToolDefinition] = [
             "type": "object",
             "properties": {
                 "elementIndex": {"type": "integer", "description": "The numeric index of the element to click."},
+            },
+            "required": ["elementIndex"],
+        },
+        safety_classification="restricted",
+    ),
+    ToolDefinition(
+        name="click_navigation",
+        description="Clicks a step navigation control (e.g. Next / Back). Never clicks submit controls.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "elementIndex": {"type": "integer", "description": "The numeric index of the navigation button."},
+                "navigationType": {"type": "string", "description": "NAVIGATION_NEXT or NAVIGATION_BACK."},
             },
             "required": ["elementIndex"],
         },
@@ -116,7 +155,7 @@ TOOL_DEFINITIONS: List[ToolDefinition] = [
     ),
     ToolDefinition(
         name="finish_filling",
-        description="Declares that all fields have been filled and verified. Leaves the form ready for human review.",
+        description="Declares that all fields have been filled and verified. Transitions session to READY_FOR_REVIEW for human inspection.",
         input_schema={
             "type": "object",
             "properties": {

@@ -11,9 +11,28 @@ HTML_FIXTURE_URL = (FIXTURES_DIR / "sample-registration-form.html").as_uri()
 
 @pytest.mark.asyncio
 async def test_fixture_dryrun_end_to_end():
+    """
+    SECTION 24 CANONICAL END-TO-END ACCEPTANCE TEST:
+    - Input: sample-admission-record.docx
+    - Form: sample-registration-form.html
+    - Document parsed with canonical fields
+    - Address ambiguity detected
+    - User answers 'Grade 5' -> rejected, remains WAITING_FOR_USER
+    - User answers 'permanent' -> accepted, proceeds
+    - Browser DOM verified across all fields
+    - Hosteler remains untouched
+    - Final state: READY_FOR_REVIEW
+    - Form remains unsubmitted
+    """
     # 1. Parse document
     doc_data = extract_document(DOCX_FIXTURE, dry_run=True)
     assert doc_data.student.fullName == "Aditi Rakesh Sharma"
+    assert doc_data.student.dateOfBirth == "2015-03-12"
+    assert doc_data.student.gender == "Female"
+    assert doc_data.student.grade == "Grade 8"
+    assert doc_data.parent.fatherName == "Rakesh Kumar Sharma"
+    assert doc_data.parent.motherName == "Sunita Sharma"
+    assert doc_data.parent.contactNumber == "9876543210"
 
     events = []
     session = AgentSession(
@@ -24,7 +43,7 @@ async def test_fixture_dryrun_end_to_end():
         on_event=lambda evt: events.append(evt),
     )
 
-    # 2. Run session in background task to handle ask_user interaction
+    # 2. Run session in background task
     run_task = asyncio.create_task(session.run())
 
     # Wait for ask_user event (address ambiguity)
@@ -33,23 +52,33 @@ async def test_fixture_dryrun_end_to_end():
             break
         await asyncio.sleep(0.05)
 
-    if session.state == AgentState.WAITING_FOR_USER:
-        ask_evt = next((e for e in events if e["type"] == EventType.ASK_USER.value), None)
-        assert ask_evt is not None
-        session.provide_user_answer(ask_evt["promptId"], "14 Lotus Lane")
+    assert session.state == AgentState.WAITING_FOR_USER
+    ask_evt = next((e for e in events if e["type"] == EventType.ASK_USER.value), None)
+    assert ask_evt is not None
+    prompt_id = ask_evt["promptId"]
+
+    # Test invalid answer rejection: 'Grade 5'
+    session.provide_user_answer(prompt_id, "Grade 5")
+    await asyncio.sleep(0.1)
+
+    # Agent must reject 'Grade 5' and remain in WAITING_FOR_USER
+    assert session.state == AgentState.WAITING_FOR_USER
+
+    # Now provide valid answer: 'permanent'
+    session.provide_user_answer(prompt_id, "permanent")
 
     # Await completion
     await run_task
 
-    # Verify session completed successfully and reached READY_FOR_REVIEW
+    # 3. Verify terminal state is strictly READY_FOR_REVIEW
     assert session.state == AgentState.READY_FOR_REVIEW
 
-    # Verify field verifications occurred
+    # 4. Verify field verifications occurred
     verify_events = [e for e in events if e["type"] == EventType.VERIFY_RESULT.value]
     assert len(verify_events) >= 8
     assert all(v["matches"] for v in verify_events)
 
-    # 3. VERIFY ACTUAL VALUES IN THE BROWSER DOM (not just logs/events)
+    # 5. VERIFY ACTUAL VALUES IN THE BROWSER DOM
     page = session.browser_session.page
     assert await page.input_value("#full-name") == "Aditi Rakesh Sharma"
     assert await page.input_value("#birth-date") == "2015-03-12"
@@ -62,7 +91,15 @@ async def test_fixture_dryrun_end_to_end():
     assert await page.input_value("#city") == "Nagpur"
     assert await page.input_value("#state") == "Maharashtra"
     assert await page.input_value("#pincode") == "440001"
-    # Unverified / unmapped hostel accommodation checkbox remains untouched (never guessed)
+
+    # Hosteler remains untouched
     assert await page.is_checked("#hosteler") is False
+
+    # Confirm checkbox remained untouched
+    assert await page.is_checked("#confirm") is False
+
+    # Form was NEVER submitted
+    was_submitted = await page.evaluate("() => Boolean(window.__submitted)")
+    assert was_submitted is False
 
     await session.close()

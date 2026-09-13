@@ -21,12 +21,17 @@ class FormElement(BaseModel):
     section: str = ""
     required: bool = False
     disabled: bool = False
+    readOnly: bool = False
+    value: str = ""
     currentValue: str = ""
     checked: bool = False
     selectedText: str = ""
     selectedValue: str = ""
     options: List[SelectOption] = Field(default_factory=list)
     isSubmit: bool = False
+    isConsent: bool = False
+    actionType: Optional[str] = None
+    step: Optional[int] = None
 
 class FormSnapshot(BaseModel):
     url: str

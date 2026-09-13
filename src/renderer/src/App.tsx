@@ -131,6 +131,22 @@ export const App: React.FC = () => {
           appendLog(`✅ Ready for Review: ${evt.summary || 'Completed.'}`, 'complete');
           break;
 
+        case 'step-changed':
+          appendLog(`➡ Multi-step progress: advanced from Step ${evt.currentStep} to Step ${evt.nextStep}`, 'info');
+          break;
+
+        case 'dynamic-field-detected':
+          appendLog(`✨ Dynamic fields detected: ${evt.message || 'new form fields appeared'}`, 'info');
+          break;
+
+        case 'file-uploaded':
+          appendLog(`📎 File attached: ${evt.message || `Element ${evt.elementIndex}`}`, 'info');
+          break;
+
+        case 'safety-blocked':
+          appendLog(`🛡 Safety policy enforced: ${evt.message}`, 'error');
+          break;
+
         case 'error':
           setStatus('error');
           setStatusMessage(evt.message || 'An error occurred.');

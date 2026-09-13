@@ -8,11 +8,16 @@ const COLLECT_ELEMENTS_SCRIPT = `
   const selector = 'input, select, textarea, button, [role="button"], [contenteditable="true"]';
   const allNodes = Array.from(document.querySelectorAll(selector));
 
-  // Filter out hidden inputs and elements with display:none or visibility:hidden
+  // Filter out hidden inputs and elements with display:none, visibility:hidden, or inside hidden ancestors
   const nodes = allNodes.filter((node) => {
     if (node.type === 'hidden') return false;
-    const style = window.getComputedStyle(node);
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (typeof node.checkVisibility === 'function') {
+      if (!node.checkVisibility({ checkVisibilityCSS: true })) return false;
+    } else {
+      const style = window.getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      if (node.offsetParent === null && style.position !== 'fixed') return false;
+    }
     return true;
   });
 

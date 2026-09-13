@@ -81,6 +81,9 @@ export interface AgentEvent {
   context?: string;
   summary?: string;
   snapshot?: any[];
+  currentStep?: number;
+  nextStep?: number;
+  parentIndex?: number;
 }
 
 export interface DocumentPickResult {
